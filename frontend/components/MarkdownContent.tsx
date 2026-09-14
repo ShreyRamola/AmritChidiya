@@ -11,7 +11,7 @@ interface MarkdownContentProps {
 
 export default function MarkdownContent({ content, isAssistant = true }: MarkdownContentProps) {
   return (
-    <div className="markdown-body space-y-2 text-[15px] leading-relaxed break-words">
+    <div className="markdown-body space-y-2 text-xs sm:text-sm leading-relaxed break-words">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
