@@ -22,12 +22,13 @@ import {
 } from 'lucide-react';
 import {
   getCurrentUser,
-  login,
-  signUp,
+  loginAsync,
+  signUpAsync,
   logout,
-  getUserChats,
-  saveUserChat,
-  deleteUserChat,
+  getUserChatsAsync,
+  getUserChatsLocal,
+  saveUserChatAsync,
+  deleteUserChatAsync,
   SavedChat,
   User
 } from '@/lib/auth';
@@ -378,8 +379,8 @@ export default function Home() {
     const user = getCurrentUser();
     if (user) {
       setCurrentUser(user);
-      const chats = getUserChats(user.id);
-      setSavedChats(chats);
+      setSavedChats(getUserChatsLocal(user.id));
+      getUserChatsAsync(user.id).then(chats => setSavedChats(chats));
     }
   }, []);
 
@@ -393,7 +394,7 @@ export default function Home() {
   }, [talkStatus]);
 
   // Handle Auth Login / Signup
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
     setAuthSuccessMsg('');
@@ -406,15 +407,15 @@ export default function Home() {
     try {
       let user: User;
       if (authTab === 'signup') {
-        user = signUp(authEmail, authName, authPass);
+        user = await signUpAsync(authEmail, authName, authPass);
         setAuthSuccessMsg('Account created successfully!');
       } else {
-        user = login(authEmail, authPass);
+        user = await loginAsync(authEmail, authPass);
         setAuthSuccessMsg('Logged in successfully!');
       }
 
       setCurrentUser(user);
-      const chats = getUserChats(user.id);
+      const chats = await getUserChatsAsync(user.id);
       setSavedChats(chats);
 
       // Auto-save current chat under new user account only if there are user messages
@@ -424,7 +425,7 @@ export default function Home() {
         updateChatId(chatId);
         const userMsg = messages.find(m => m.role === 'user')?.content || 'Search';
         const title = userMsg.slice(0, 28) + (userMsg.length > 28 ? '...' : '');
-        const updated = saveUserChat(user.id, {
+        const updated = await saveUserChatAsync(user.id, {
           id: chatId,
           title,
           date: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
@@ -464,10 +465,10 @@ export default function Home() {
     setInput('');
   };
 
-  const handleDeleteChat = (chatId: string, e: React.MouseEvent) => {
+  const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentUser) return;
-    const updated = deleteUserChat(currentUser.id, chatId);
+    const updated = await deleteUserChatAsync(currentUser.id, chatId);
     setSavedChats(updated);
     if (currentChatIdRef.current === chatId) {
       handleStartNewChat();
@@ -942,7 +943,7 @@ export default function Home() {
           const firstUserMsg = finalMessages.find(m => m.role === 'user')?.content || 'Search';
           const title = firstUserMsg.slice(0, 28) + (firstUserMsg.length > 28 ? '...' : '');
 
-          const updated = saveUserChat(currentUser.id, {
+          const updated = await saveUserChatAsync(currentUser.id, {
             id: chatId,
             title,
             date: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),

@@ -1,15 +1,18 @@
 import os
 import re
 import tempfile
+from typing import List, Dict, Optional, Any
+
 import edge_tts
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from dotenv import load_dotenv
-from agents.chat_agent import chat_agent
 from pydantic import BaseModel
-from typing import List, Dict
 from groq import Groq
+
+from agents.chat_agent import chat_agent
+import database as db
 
 load_dotenv(override=True)
 
@@ -29,6 +32,24 @@ app.add_middleware(
 
 # Initialize Groq client for transcription
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+class SignUpRequest(BaseModel):
+    email: str
+    name: str = ""
+    password: str
+
+class LogInRequest(BaseModel):
+    email: str
+    password: str
+
+class SaveChatPayload(BaseModel):
+    id: Optional[str] = None
+    title: str = "New Chat"
+    date: str = "Today"
+    language: str = "English"
+    messages: List[Dict[str, Any]] = []
+    schemes: List[Dict[str, Any]] = []
+    updatedAt: Optional[float] = None
 
 class ChatMessage(BaseModel):
     role: str
@@ -73,6 +94,50 @@ async def root():
         "message": "Namaste! 🙏 Main AmritChidiya hoon — aapki Sone Ki Chidiya ko phir se udaan dene ka saathi.",
         "status": "ready"
     }
+
+@app.post("/signup")
+async def signup(req: SignUpRequest):
+    try:
+        user = db.create_user(req.email, req.name, req.password)
+        return {"user": user, "message": "Account created successfully"}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+@app.post("/login")
+async def login(req: LogInRequest):
+    try:
+        user = db.authenticate_user(req.email, req.password)
+        return {"user": user, "message": "Logged in successfully"}
+    except ValueError as ve:
+        raise HTTPException(status_code=401, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+
+@app.get("/chats/{user_id}")
+async def get_chats(user_id: str):
+    try:
+        chats = db.get_user_chats(user_id)
+        return {"chats": chats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chats/{user_id}")
+async def save_chat(user_id: str, payload: SaveChatPayload):
+    try:
+        updated_chats = db.save_user_chat(user_id, payload.dict())
+        return {"chats": updated_chats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/chats/{user_id}/{chat_id}")
+async def delete_chat(user_id: str, chat_id: str):
+    try:
+        updated_chats = db.delete_user_chat(user_id, chat_id)
+        return {"chats": updated_chats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat")
 async def chat(request: ChatRequest):

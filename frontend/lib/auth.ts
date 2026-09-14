@@ -15,8 +15,9 @@ export interface SavedChat {
 }
 
 const SESSION_KEY = 'amrit_chidiya_user_session';
-const USERS_DB_KEY = 'amrit_chidiya_registered_users';
 const CHATS_PREFIX = 'amrit_chidiya_chats_';
+
+const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export function getCurrentUser(): User | null {
   if (typeof window === 'undefined') return null;
@@ -29,35 +30,48 @@ export function getCurrentUser(): User | null {
   }
 }
 
-export function signUp(email: string, name: string, pass: string): User {
-  const users = getRegisteredUsers();
-  const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (existing) {
-    throw new Error('An account with this email already exists.');
+export async function signUpAsync(email: string, name: string, pass: string): Promise<User> {
+  const apiUrl = getApiUrl();
+  try {
+    const res = await fetch(`${apiUrl}/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), name: name.trim(), password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || 'Registration failed');
+    }
+    const user: User = data.user;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    }
+    return user;
+  } catch (err: any) {
+    throw err;
   }
-
-  const newUser: User = {
-    id: 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-    email: email.trim(),
-    name: name.trim() || email.split('@')[0],
-  };
-
-  users.push({ ...newUser, pass });
-  localStorage.setItem(USERS_DB_KEY, JSON.stringify(users));
-  localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
-  return newUser;
 }
 
-export function login(email: string, pass: string): User {
-  const users = getRegisteredUsers();
-  const found = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim() && u.pass === pass);
-  if (!found) {
-    throw new Error('Invalid email or password.');
+export async function loginAsync(email: string, pass: string): Promise<User> {
+  const apiUrl = getApiUrl();
+  try {
+    const res = await fetch(`${apiUrl}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || 'Invalid email or password.');
+    }
+    const user: User = data.user;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    }
+    return user;
+  } catch (err: any) {
+    throw err;
   }
-
-  const user: User = { id: found.id, email: found.email, name: found.name };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  return user;
 }
 
 export function logout(): void {
@@ -65,66 +79,104 @@ export function logout(): void {
   localStorage.removeItem(SESSION_KEY);
 }
 
-function getRegisteredUsers(): any[] {
-  if (typeof window === 'undefined') return [];
+export async function getUserChatsAsync(userId: string): Promise<SavedChat[]> {
+  const apiUrl = getApiUrl();
   try {
-    const raw = localStorage.getItem(USERS_DB_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const res = await fetch(`${apiUrl}/chats/${userId}`);
+    if (res.ok) {
+      const data = await res.json();
+      const serverChats: SavedChat[] = data.chats || [];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(CHATS_PREFIX + userId, JSON.stringify(serverChats));
+      }
+      return serverChats;
+    }
   } catch (e) {
-    return [];
+    console.warn("Backend chats fetch notice:", e);
   }
+  return getUserChatsLocal(userId);
 }
 
-export function getUserChats(userId: string): SavedChat[] {
+export function getUserChatsLocal(userId: string): SavedChat[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(CHATS_PREFIX + userId);
     if (!raw) return [];
     const chats: SavedChat[] = JSON.parse(raw);
-
-    // Filter out chats with no user messages or invalid/undefined titles
-    const validChats = chats.filter(c => {
-      const hasUserMsg = c.messages && c.messages.some(m => m.role === 'user');
-      const hasValidTitle = c.title && !c.title.includes('undefined');
-      return hasUserMsg && hasValidTitle;
-    });
-
-    if (validChats.length !== chats.length) {
-      localStorage.setItem(CHATS_PREFIX + userId, JSON.stringify(validChats));
-    }
-    return validChats;
+    return chats.filter(c => c.messages && c.messages.some(m => m.role === 'user'));
   } catch (e) {
-    console.error("Error reading user chats:", e);
     return [];
   }
 }
 
-export function saveUserChat(userId: string, chat: SavedChat): SavedChat[] {
-  if (typeof window === 'undefined') return [];
-  
-  // Do not save chats that have no user messages!
+export async function saveUserChatAsync(userId: string, chat: SavedChat): Promise<SavedChat[]> {
   const hasUserMsg = chat.messages && chat.messages.some(m => m.role === 'user');
-  if (!hasUserMsg) {
-    return getUserChats(userId);
+  if (!hasUserMsg) return getUserChatsLocal(userId);
+
+  const localChats = saveUserChatLocal(userId, chat);
+
+  const apiUrl = getApiUrl();
+  try {
+    const res = await fetch(`${apiUrl}/chats/${userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(chat)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.chats) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(CHATS_PREFIX + userId, JSON.stringify(data.chats));
+        }
+        return data.chats;
+      }
+    }
+  } catch (e) {
+    console.warn("Backend chat save notice:", e);
   }
+  return localChats;
+}
 
-  const chats = getUserChats(userId);
+export function saveUserChatLocal(userId: string, chat: SavedChat): SavedChat[] {
+  if (typeof window === 'undefined') return [];
+  const chats = getUserChatsLocal(userId);
   const existingIdx = chats.findIndex(c => c.id === chat.id);
-
   if (existingIdx >= 0) {
     chats[existingIdx] = chat;
   } else {
     chats.unshift(chat);
   }
-
   chats.sort((a, b) => b.updatedAt - a.updatedAt);
   localStorage.setItem(CHATS_PREFIX + userId, JSON.stringify(chats));
   return chats;
 }
 
-export function deleteUserChat(userId: string, chatId: string): SavedChat[] {
+export async function deleteUserChatAsync(userId: string, chatId: string): Promise<SavedChat[]> {
+  const localChats = deleteUserChatLocal(userId, chatId);
+
+  const apiUrl = getApiUrl();
+  try {
+    const res = await fetch(`${apiUrl}/chats/${userId}/${chatId}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.chats) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(CHATS_PREFIX + userId, JSON.stringify(data.chats));
+        }
+        return data.chats;
+      }
+    }
+  } catch (e) {
+    console.warn("Backend chat delete notice:", e);
+  }
+  return localChats;
+}
+
+export function deleteUserChatLocal(userId: string, chatId: string): SavedChat[] {
   if (typeof window === 'undefined') return [];
-  const chats = getUserChats(userId).filter(c => c.id !== chatId);
+  const chats = getUserChatsLocal(userId).filter(c => c.id !== chatId);
   localStorage.setItem(CHATS_PREFIX + userId, JSON.stringify(chats));
   return chats;
 }
