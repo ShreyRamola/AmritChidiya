@@ -346,6 +346,7 @@ export default function Home() {
   const [authPass, setAuthPass] = useState('');
   const [authError, setAuthError] = useState('');
   const [authSuccessMsg, setAuthSuccessMsg] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
 
   // Speech States
   const [isListening, setIsListening] = useState(false);
@@ -404,6 +405,8 @@ export default function Home() {
       return;
     }
 
+    setAuthLoading(true);
+
     try {
       let user: User;
       if (authTab === 'signup') {
@@ -441,9 +444,11 @@ export default function Home() {
         setShowAuthModal(false);
         setAuthError('');
         setAuthSuccessMsg('');
+        setAuthLoading(false);
       }, 600);
     } catch (err: any) {
       setAuthError(err.message || 'Authentication failed');
+      setAuthLoading(false);
     }
   };
 
@@ -1565,9 +1570,17 @@ export default function Home() {
 
               <button
                 type="submit"
-                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold rounded-xl text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all transform hover:-translate-y-0.5 mt-2"
+                disabled={authLoading}
+                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold rounded-xl text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all transform hover:-translate-y-0.5 mt-2 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
-                {authTab === 'signup' ? t.submitSignUp : t.submitLogIn}
+                {authLoading ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-zinc-950 border-t-transparent animate-spin"></span>
+                    <span>{t.processingRequest || 'Processing...'}</span>
+                  </>
+                ) : (
+                  authTab === 'signup' ? t.submitSignUp : t.submitLogIn
+                )}
               </button>
             </form>
 
