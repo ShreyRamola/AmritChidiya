@@ -1160,7 +1160,7 @@ export default function Home() {
               {!currentUser && (
                 <button
                   onClick={() => {
-                    setAuthTab('signup');
+                    setAuthTab('login');
                     setShowAuthModal(true);
                   }}
                   className="text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-lg transition-all"
@@ -1217,7 +1217,7 @@ export default function Home() {
                   <p className="text-[10px] text-zinc-600 mt-0.5">{t.saveHistoryPromptSub}</p>
                   <button
                     onClick={() => {
-                      setAuthTab('signup');
+                      setAuthTab('login');
                       setShowAuthModal(true);
                     }}
                     className="mt-2.5 text-xs font-bold text-amber-400 underline hover:text-amber-300"
