@@ -1282,10 +1282,10 @@ export default function Home() {
 
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col relative z-10 bg-[url('/bg-image.jpg.png')] bg-cover bg-center min-w-0">
-            <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-950/40 to-zinc-950 pointer-events-none z-0"></div>
+            <div className="absolute inset-0 bg-zinc-950/75 backdrop-blur-[1px] pointer-events-none z-0"></div>
 
             {/* Top Bar with Auth Status, Mobile Controls & Actions */}
-            <div className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 bg-gradient-to-b from-zinc-950/90 via-zinc-950/40 to-transparent z-10 shrink-0 border-b border-zinc-800/30">
+            <div className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 bg-zinc-950/80 backdrop-blur-xl z-10 shrink-0 border-b border-zinc-800/40">
               <div className="flex items-center gap-2">
                 {/* Mobile Menu Button */}
                 <button
@@ -1392,11 +1392,11 @@ export default function Home() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="pt-2 pb-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] px-3 sm:px-6 bg-gradient-to-t from-zinc-950 via-zinc-950/95 to-transparent z-10 shrink-0">
+            <div className="pt-2.5 pb-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] px-3 sm:px-6 bg-zinc-950/85 backdrop-blur-xl border-t border-zinc-800/40 z-10 shrink-0">
               <div className="flex gap-2 max-w-2xl sm:max-w-3xl mx-auto relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 to-zinc-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
 
-                <div className="relative flex gap-1.5 sm:gap-2 w-full bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/70 items-center shadow-lg">
+                <div className="relative flex gap-1.5 sm:gap-2 w-full bg-zinc-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-zinc-800/80 items-center shadow-2xl">
                   <button
                     onClick={toggleListening}
                     title="Voice dictation"
