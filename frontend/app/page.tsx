@@ -542,8 +542,24 @@ export default function Home() {
     const ignoreTerms = new Set([
       'scholarship', 'scholarships', 'scheme', 'schemes', 'yojana', 'grant', 'portal',
       'up ke students ke liye specific scholarships', 'national scholarship portal', 'nsp',
-      'quick reply suggestions', 'annual income', 'family background', 'main goal', 'age', 'state'
+      'quick reply suggestions', 'annual income', 'family background', 'main goal', 'age', 'state',
+      'key reminder', 'key reminders', 'reminder', 'reminders', 'action plan', 'your action plan',
+      'what to do next', 'next steps', 'required documents', 'documents required', 'documents needed',
+      'important note', 'important notes', 'eligibility criteria', 'how to apply', 'application process',
+      'direct portal link', 'official portal', 'overview', 'summary', 'disclaimer', 'note', 'notes',
+      'faqs', 'frequently asked questions', 'checklist', 'instructions', 'proof', 'save proof',
+      'verification', 'tracking', 'post-submission', 'acknowledgement', 'download form'
     ]);
+
+    const ignoreSubstrings = [
+      'sawalon', 'jawaab', 'suggestions', 'income', 'background', 'question',
+      'reminder', 'action plan', 'what to do', 'next step', 'step 1', 'step 2',
+      'step 3', 'step 4', 'step 5', 'required document', 'document needed',
+      'important note', 'eligibility criteria', 'how to apply', 'application process',
+      'portal link', 'official portal', 'overview', 'summary', 'disclaimer',
+      'checklist', 'instruction', 'save proof', 'verification', 'tracking',
+      'post-submission', 'acknowledgement', 'download form'
+    ];
 
     const assistantMsgs = messages.filter(m => m.role === 'assistant');
     for (const msg of assistantMsgs) {
@@ -579,7 +595,7 @@ export default function Home() {
           clean.length < 90 &&
           !seen.has(cleanLower) &&
           !ignoreTerms.has(cleanLower) &&
-          !['sawalon', 'jawaab', 'suggestions', 'income', 'background', 'question'].some(p => cleanLower.includes(p))
+          !ignoreSubstrings.some(p => cleanLower.includes(p))
         ) {
           seen.add(cleanLower);
           schemes.push({
@@ -590,6 +606,7 @@ export default function Home() {
         }
       }
     }
+
 
     return schemes;
   }
@@ -996,11 +1013,24 @@ export default function Home() {
       const finalMessages = [...updatedMessages, { role: 'assistant', content: data.response }];
       setMessages(finalMessages);
 
-      const activeSchemes = (data.schemes && data.schemes.length > 0)
+      let activeSchemes = (data.schemes && data.schemes.length > 0)
         ? data.schemes
         : extractSchemesFromMessages(finalMessages);
 
+      const filterBadSchemes = (list: any[]) => list.filter(s => {
+        const cleanLower = (s.name || '').toLowerCase().trim();
+        const badWords = ["reminder", "action plan", "what to do", "next step", "document", "step 1", "step 2", "step 3", "step 4", "step 5", "proof", "verification", "tracking", "post-submission"];
+        return cleanLower && cleanLower.length > 4 && !badWords.some(bw => cleanLower.includes(bw));
+      });
+
+      activeSchemes = filterBadSchemes(activeSchemes);
+
+      if (activeSchemes.length === 0 && suggestedSchemes.length > 0) {
+        activeSchemes = filterBadSchemes(suggestedSchemes);
+      }
+
       setSuggestedSchemes(activeSchemes);
+
 
       if (activeSchemes.length > 0 && !currentUser) {
         setShowAuthModal(true);

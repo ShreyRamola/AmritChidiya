@@ -97,8 +97,24 @@ def extract_schemes_from_text(text: str) -> list:
     ignore_terms = {
         "scholarship", "scholarships", "scheme", "schemes", "yojana", "grant", "portal",
         "up ke students ke liye specific scholarships", "national scholarship portal", "nsp",
-        "quick reply suggestions", "annual income", "family background", "main goal", "age", "state"
+        "quick reply suggestions", "annual income", "family background", "main goal", "age", "state",
+        "key reminder", "key reminders", "reminder", "reminders", "action plan", "your action plan",
+        "what to do next", "next steps", "required documents", "documents required", "documents needed",
+        "important note", "important notes", "eligibility criteria", "how to apply", "application process",
+        "direct portal link", "official portal", "overview", "summary", "disclaimer", "note", "notes",
+        "faqs", "frequently asked questions", "checklist", "instructions", "proof", "save proof",
+        "verification", "tracking", "post-submission", "acknowledgement", "download form"
     }
+
+    ignore_substrings = [
+        "sawalon", "jawaab", "suggestions", "income", "background", "question",
+        "reminder", "action plan", "what to do", "next step", "step 1", "step 2",
+        "step 3", "step 4", "step 5", "required document", "document needed",
+        "important note", "eligibility criteria", "how to apply", "application process",
+        "portal link", "official portal", "overview", "summary", "disclaimer",
+        "checklist", "instruction", "save proof", "verification", "tracking",
+        "post-submission", "acknowledgement", "download form"
+    ]
 
     seen = set()
     for m in raw_matches:
@@ -114,19 +130,21 @@ def extract_schemes_from_text(text: str) -> list:
         clean_name = re.sub(r'[\U00010000-\U0010ffff\u2600-\u26FF\u2700-\u27BF]', '', clean_name).strip()
         clean_name = re.sub(r'^\d+\.\s*', '', clean_name).strip()
         clean_name = clean_name.rstrip('*').rstrip(':').strip()
+        clean_lower = clean_name.lower()
         
         if (clean_name 
-            and clean_name.lower() not in seen 
-            and clean_name.lower() not in ignore_terms
-            and not any(phrase in clean_name.lower() for phrase in ["sawalon", "jawaab", "suggestions", "income", "background", "question"])
+            and clean_lower not in seen 
+            and clean_lower not in ignore_terms
+            and not any(phrase in clean_lower for phrase in ignore_substrings)
             and 4 < len(clean_name) < 90):
-            seen.add(clean_name.lower())
+            seen.add(clean_lower)
             schemes.append({
                 'name': clean_name,
                 'eligibility_match': '100% ELIGIBLE - MATCHED PROFILE',
                 'apply_url': resolve_scheme_url(clean_name, extracted_url)
             })
     return schemes
+
 
 
 
