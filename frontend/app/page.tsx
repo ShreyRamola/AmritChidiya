@@ -1127,34 +1127,32 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen h-[100dvh] w-screen overflow-hidden bg-zinc-950 text-zinc-100 selection:bg-amber-500/30 font-sans">
-      <div className={`transition-transform duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] h-[200vh] h-[200dvh] w-full flex flex-col ${selectedLanguage ? '-translate-y-[100vh] sm:-translate-y-[100vh] -translate-y-[100dvh]' : 'translate-y-0'}`}>
-
-        {/* --- PAGE 1: Language Selection --- */}
-        <div className="flex-none h-screen h-[100dvh] bg-[url('/bg-image.jpg.png')] bg-cover bg-center relative flex items-center justify-center p-4 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-950/40 to-zinc-950 z-0 pointer-events-none"></div>
-          <div className="bg-zinc-900/85 backdrop-blur-xl p-6 sm:p-7 rounded-3xl border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-sm sm:max-w-md w-full text-center relative overflow-hidden z-10 transform scale-90 sm:scale-95 origin-center transition-transform">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-amber-500/20 rounded-full blur-[50px] -z-10"></div>
-            <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-[0_0_25px_rgba(245,158,11,0.3)]">🐦</div>
-            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 mb-1 tracking-tight">AmritChidiya</h1>
-            <p className="text-zinc-400 mb-4 font-light tracking-wide text-xs uppercase">Apni Sone Ki Chidiya</p>
-            <h2 className="text-sm font-medium mb-3 text-zinc-300">Select Your Language</h2>
-            <div className="grid gap-2.5">
-              {LANGUAGES.map(lang => (
-                <button
-                  key={lang.id}
-                  onClick={() => handleLanguageSelect(lang.id)}
-                  className="py-2.5 px-4 rounded-xl border border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all text-sm font-medium text-zinc-300 hover:text-amber-400 hover:shadow-[0_0_15px_rgba(245,158,11,0.1)]"
-                >
-                  {lang.label}
-                </button>
-              ))}
-            </div>
+    <div className="fixed inset-0 w-screen h-screen h-[100dvh] overflow-hidden bg-zinc-950 text-zinc-100 selection:bg-amber-500/30 font-sans">
+      {/* --- PAGE 1: Language Selection Overlay --- */}
+      <div className={`absolute inset-0 z-30 bg-[url('/bg-image.jpg.png')] bg-cover bg-center flex items-center justify-center p-4 overflow-hidden transition-all duration-[700ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${selectedLanguage ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-950/40 to-zinc-950 z-0 pointer-events-none"></div>
+        <div className="bg-zinc-900/85 backdrop-blur-xl p-6 sm:p-7 rounded-3xl border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-sm sm:max-w-md w-full text-center relative overflow-hidden z-10 transform scale-90 sm:scale-95 origin-center transition-transform">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-amber-500/20 rounded-full blur-[50px] -z-10"></div>
+          <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-[0_0_25px_rgba(245,158,11,0.3)]">🐦</div>
+          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 mb-1 tracking-tight">AmritChidiya</h1>
+          <p className="text-zinc-400 mb-4 font-light tracking-wide text-xs uppercase">Apni Sone Ki Chidiya</p>
+          <h2 className="text-sm font-medium mb-3 text-zinc-300">Select Your Language</h2>
+          <div className="grid gap-2.5">
+            {LANGUAGES.map(lang => (
+              <button
+                key={lang.id}
+                onClick={() => handleLanguageSelect(lang.id)}
+                className="py-2.5 px-4 rounded-xl border border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all text-sm font-medium text-zinc-300 hover:text-amber-400 hover:shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+              >
+                {lang.label}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
 
-        {/* --- PAGE 2: Main Interface --- */}
-        <div className="flex-none h-screen h-[100dvh] flex w-full relative">
+      {/* --- PAGE 2: Main Interface --- */}
+      <div className="absolute inset-0 z-10 flex w-full h-full max-h-[100dvh] overflow-hidden">
 
           {/* Left Sidebar (Desktop Fixed) */}
           <div className="hidden lg:flex w-64 sm:w-72 shrink-0 bg-zinc-950/50 backdrop-blur-3xl border-r border-zinc-800/50 flex-col z-10">
@@ -1394,7 +1392,7 @@ export default function Home() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="pt-2 pb-3 px-3 sm:px-6 bg-gradient-to-t from-zinc-950 via-zinc-950/95 to-transparent z-10 shrink-0">
+            <div className="pt-2 pb-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] px-3 sm:px-6 bg-gradient-to-t from-zinc-950 via-zinc-950/95 to-transparent z-10 shrink-0">
               <div className="flex gap-2 max-w-2xl sm:max-w-3xl mx-auto relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 to-zinc-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
 
@@ -1423,7 +1421,7 @@ export default function Home() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                     placeholder={t.placeholderInput}
-                    className="flex-1 bg-transparent border-none focus:ring-0 px-1.5 py-1.5 outline-none text-xs sm:text-sm text-zinc-200 placeholder:text-zinc-600 placeholder:uppercase placeholder:tracking-widest placeholder:text-[9px] sm:placeholder:text-[10px]"
+                    className="flex-1 bg-transparent border-none focus:ring-0 px-1.5 py-1.5 outline-none text-base sm:text-sm text-zinc-200 placeholder:text-zinc-600 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px] sm:placeholder:text-[10px]"
                   />
 
                   <button
@@ -1488,7 +1486,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* --- MOBILE LEFT DRAWER OVERLAY --- */}
       {showLeftMobileMenu && (
