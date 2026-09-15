@@ -18,7 +18,9 @@ import {
   History,
   ChevronRight,
   ShieldCheck,
-  Trash2
+  Trash2,
+  Menu,
+  Sparkles
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -347,6 +349,10 @@ export default function Home() {
   const [authError, setAuthError] = useState('');
   const [authSuccessMsg, setAuthSuccessMsg] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+
+  // Mobile Drawer Overlay States
+  const [showLeftMobileMenu, setShowLeftMobileMenu] = useState(false);
+  const [showRightMobileMenu, setShowRightMobileMenu] = useState(false);
 
   // Speech States
   const [isListening, setIsListening] = useState(false);
@@ -1121,11 +1127,11 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 selection:bg-amber-500/30 font-sans">
-      <div className={`transition-transform duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] h-[200vh] w-full flex flex-col ${selectedLanguage ? '-translate-y-[100vh]' : 'translate-y-0'}`}>
+    <div className="h-screen h-[100dvh] w-screen overflow-hidden bg-zinc-950 text-zinc-100 selection:bg-amber-500/30 font-sans">
+      <div className={`transition-transform duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] h-[200vh] h-[200dvh] w-full flex flex-col ${selectedLanguage ? '-translate-y-[100vh] sm:-translate-y-[100vh] -translate-y-[100dvh]' : 'translate-y-0'}`}>
 
         {/* --- PAGE 1: Language Selection --- */}
-        <div className="flex-none h-screen bg-[url('/bg-image.jpg.png')] bg-cover bg-center relative flex items-center justify-center p-4 overflow-hidden">
+        <div className="flex-none h-screen h-[100dvh] bg-[url('/bg-image.jpg.png')] bg-cover bg-center relative flex items-center justify-center p-4 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-950/40 to-zinc-950 z-0 pointer-events-none"></div>
           <div className="bg-zinc-900/85 backdrop-blur-xl p-6 sm:p-7 rounded-3xl border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-sm sm:max-w-md w-full text-center relative overflow-hidden z-10 transform scale-90 sm:scale-95 origin-center transition-transform">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-amber-500/20 rounded-full blur-[50px] -z-10"></div>
@@ -1148,10 +1154,10 @@ export default function Home() {
         </div>
 
         {/* --- PAGE 2: Main Interface --- */}
-        <div className="flex-none h-screen flex w-full relative">
+        <div className="flex-none h-screen h-[100dvh] flex w-full relative">
 
-          {/* Left Sidebar */}
-          <div className="w-64 sm:w-72 shrink-0 bg-zinc-950/50 backdrop-blur-3xl border-r border-zinc-800/50 flex flex-col z-10">
+          {/* Left Sidebar (Desktop Fixed) */}
+          <div className="hidden lg:flex w-64 sm:w-72 shrink-0 bg-zinc-950/50 backdrop-blur-3xl border-r border-zinc-800/50 flex-col z-10">
 
             {/* Header / Brand */}
             <div className="p-4 sm:p-5 border-b border-zinc-800/50 relative overflow-hidden flex items-center justify-between">
@@ -1277,34 +1283,54 @@ export default function Home() {
           </div>
 
           {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col relative z-10 bg-[url('/bg-image.jpg.png')] bg-cover bg-center">
+          <div className="flex-1 flex flex-col relative z-10 bg-[url('/bg-image.jpg.png')] bg-cover bg-center min-w-0">
             <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-950/40 to-zinc-950 pointer-events-none z-0"></div>
 
-            {/* Top Bar with Auth Status & Talk Mode Action */}
-            <div className="h-14 sm:h-16 flex items-center justify-between px-6 bg-gradient-to-b from-zinc-950/90 via-zinc-950/40 to-transparent z-10 shrink-0">
-              <h2 className="text-xs font-bold text-zinc-400 tracking-wider uppercase drop-shadow-md flex items-center gap-2">
-                <span>AmritChidiya Assistant</span>
-              </h2>
+            {/* Top Bar with Auth Status, Mobile Controls & Actions */}
+            <div className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 bg-gradient-to-b from-zinc-950/90 via-zinc-950/40 to-transparent z-10 shrink-0 border-b border-zinc-800/30">
+              <div className="flex items-center gap-2">
+                {/* Mobile Menu Button */}
+                <button
+                  onClick={() => setShowLeftMobileMenu(true)}
+                  className="lg:hidden p-2 text-zinc-300 hover:text-amber-400 bg-zinc-900 border border-zinc-800 rounded-xl"
+                  title="Menu"
+                >
+                  <Menu size={17} />
+                </button>
+                <h2 className="text-xs sm:text-sm font-bold text-zinc-400 tracking-wider uppercase drop-shadow-md flex items-center gap-1.5 truncate">
+                  <span>AmritChidiya</span>
+                </h2>
+              </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Mobile Matches Button */}
+                <button
+                  onClick={() => setShowRightMobileMenu(true)}
+                  className="lg:hidden p-1.5 px-2.5 text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-1 text-[11px] font-bold"
+                  title="Matches"
+                >
+                  <Sparkles size={14} />
+                  <span>Matches</span>
+                </button>
+
                 <button
                   onClick={handleStartNewChat}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl text-xs font-semibold hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10 transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl text-xs font-semibold hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10 transition-all shadow-sm"
                 >
                   <Plus size={14} />
-                  <span>{LANGUAGES.find(l => l.id === selectedLanguage)?.newChatLabel || 'Naya Chat'}</span>
+                  <span className="hidden sm:inline">{LANGUAGES.find(l => l.id === selectedLanguage)?.newChatLabel || 'Naya Chat'}</span>
                 </button>
               </div>
             </div>
 
-            <div id="chat-scroll-container" className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 chat-container relative z-10 scroll-smooth">
+            <div id="chat-scroll-container" className="flex-1 p-3 sm:p-6 overflow-y-auto space-y-4 chat-container relative z-10 scroll-smooth">
               {messages.map((msg, index) => {
                 const isAssistant = msg.role === 'assistant';
                 const isLockedForGuest = !currentUser && isAssistant && (suggestedSchemes.length > 0 || guestMessageCount >= 4) && index === messages.length - 1;
 
                 return (
                   <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] sm:max-w-[80%] px-5 py-4 rounded-2xl text-xs sm:text-sm leading-relaxed backdrop-blur-md relative overflow-hidden ${isAssistant
+                    <div className={`max-w-[92%] sm:max-w-[80%] px-4 py-3 sm:px-5 sm:py-4 rounded-2xl text-xs sm:text-sm leading-relaxed backdrop-blur-md relative overflow-hidden ${isAssistant
                       ? 'bg-zinc-900/80 border border-zinc-800/80 rounded-tl-sm text-zinc-300 shadow-lg'
                       : 'bg-amber-500/10 border border-amber-500/30 text-amber-100 rounded-tr-sm shadow-[0_0_20px_rgba(245,158,11,0.05)]'}`}>
 
@@ -1313,12 +1339,12 @@ export default function Home() {
                           <div className="filter blur-md select-none opacity-20 pointer-events-none max-h-36 overflow-hidden">
                             <MarkdownContent content={msg.content} isAssistant={isAssistant} />
                           </div>
-                          <div className="absolute inset-0 bg-zinc-950/85 backdrop-blur-md flex flex-col items-center justify-center p-5 text-center rounded-xl border border-amber-500/30 shadow-2xl">
-                            <div className="w-9 h-9 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1.5 text-lg animate-pulse">
+                          <div className="absolute inset-0 bg-zinc-950/85 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center rounded-xl border border-amber-500/30 shadow-2xl">
+                            <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1.5 text-base animate-pulse">
                               🔒
                             </div>
                             <h4 className="font-bold text-amber-200 text-xs sm:text-sm">{t.schemesMatchedTitle}</h4>
-                            <p className="text-[11px] text-zinc-400 mt-0.5 max-w-md leading-relaxed">
+                            <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 max-w-md leading-relaxed">
                               {t.authSubtitle}
                             </p>
                             <button
@@ -1326,7 +1352,7 @@ export default function Home() {
                                 setAuthTab('signup');
                                 setShowAuthModal(true);
                               }}
-                              className="mt-2.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-zinc-950 font-bold rounded-xl text-[11px] uppercase tracking-wider hover:from-amber-400 hover:to-amber-500 transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+                              className="mt-2.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-zinc-950 font-bold rounded-xl text-[10px] sm:text-[11px] uppercase tracking-wider hover:from-amber-400 hover:to-amber-500 transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                             >
                               {t.unlockSchemesNow}
                             </button>
@@ -1368,11 +1394,11 @@ export default function Home() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="pt-2 pb-3 px-4 sm:px-6 bg-gradient-to-t from-zinc-950 via-zinc-950/95 to-transparent z-10 shrink-0">
-              <div className="flex gap-3 max-w-2xl sm:max-w-3xl mx-auto relative group">
+            <div className="pt-2 pb-3 px-3 sm:px-6 bg-gradient-to-t from-zinc-950 via-zinc-950/95 to-transparent z-10 shrink-0">
+              <div className="flex gap-2 max-w-2xl sm:max-w-3xl mx-auto relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 to-zinc-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
 
-                <div className="relative flex gap-2 w-full bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/70 items-center shadow-lg">
+                <div className="relative flex gap-1.5 sm:gap-2 w-full bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/70 items-center shadow-lg">
                   <button
                     onClick={toggleListening}
                     title="Voice dictation"
@@ -1384,7 +1410,7 @@ export default function Home() {
                   <button
                     onClick={openTalkMode}
                     title={currentUser ? "Enter hands-free talk mode" : "Talk Mode requires Sign In"}
-                    className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 rounded-xl transition-all flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider shrink-0"
+                    className="px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 rounded-xl transition-all flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider shrink-0"
                   >
                     <Headphones size={15} />
                     <span className="hidden sm:inline">Talk Mode</span>
@@ -1397,23 +1423,23 @@ export default function Home() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                     placeholder={t.placeholderInput}
-                    className="flex-1 bg-transparent border-none focus:ring-0 px-2 py-1.5 outline-none text-xs sm:text-sm text-zinc-200 placeholder:text-zinc-600 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
+                    className="flex-1 bg-transparent border-none focus:ring-0 px-1.5 py-1.5 outline-none text-xs sm:text-sm text-zinc-200 placeholder:text-zinc-600 placeholder:uppercase placeholder:tracking-widest placeholder:text-[9px] sm:placeholder:text-[10px]"
                   />
 
                   <button
                     onClick={() => sendMessage()}
                     disabled={loading}
-                    className="px-4 py-2 sm:px-5 sm:py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 rounded-xl font-bold flex items-center gap-1.5 disabled:opacity-50 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] shrink-0 text-xs sm:text-sm"
+                    className="px-3.5 py-2 sm:px-5 sm:py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 rounded-xl font-bold flex items-center gap-1.5 disabled:opacity-50 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] shrink-0 text-xs sm:text-sm"
                   >
-                    <Send size={15} />
+                    <Send size={14} />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right Sidebar */}
-          <div className="w-64 sm:w-72 shrink-0 bg-zinc-950/50 backdrop-blur-3xl border-l border-zinc-800/50 p-4 flex flex-col z-10 h-full overflow-hidden">
+          {/* Right Sidebar (Desktop Fixed) */}
+          <div className="hidden lg:flex w-64 sm:w-72 shrink-0 bg-zinc-950/50 backdrop-blur-3xl border-l border-zinc-800/50 p-4 flex-col z-10 h-full overflow-hidden">
             <h3 className="text-zinc-300 font-semibold mb-4 flex items-center gap-2.5 text-xs uppercase tracking-wider">
               <span className="w-6 h-px bg-gradient-to-r from-amber-500 to-transparent"></span>
               {t.matchesTitle}
@@ -1463,6 +1489,209 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* --- MOBILE LEFT DRAWER OVERLAY --- */}
+      {showLeftMobileMenu && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowLeftMobileMenu(false)}
+          ></div>
+          <div className="relative w-72 max-w-[85vw] bg-zinc-950 border-r border-zinc-800 flex flex-col h-full z-10 shadow-2xl animate-in slide-in-from-left duration-300">
+            <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Purani Chats & Account</span>
+              <button
+                onClick={() => setShowLeftMobileMenu(false)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-lg bg-zinc-900"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* User Profile Pill */}
+            {currentUser ? (
+              <div className="mx-3 mt-3 p-2.5 bg-zinc-900/80 border border-zinc-800 rounded-2xl flex items-center justify-between shadow-md">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-bold text-zinc-950 text-xs shrink-0">
+                    {currentUser.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="truncate">
+                    <p className="text-xs font-bold text-zinc-200 truncate">{currentUser.name}</p>
+                    <p className="text-[9px] text-zinc-500 truncate">{currentUser.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  title="Sign Out"
+                  className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                >
+                  <LogOut size={15} />
+                </button>
+              </div>
+            ) : (
+              <div className="p-3">
+                <button
+                  onClick={() => {
+                    setShowLeftMobileMenu(false);
+                    setAuthTab('login');
+                    setShowAuthModal(true);
+                  }}
+                  className="w-full py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-bold uppercase"
+                >
+                  {t.signIn}
+                </button>
+              </div>
+            )}
+
+            <div className="p-3">
+              <button
+                onClick={() => {
+                  setShowLeftMobileMenu(false);
+                  handleStartNewChat();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl font-medium text-xs hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10 transition-all duration-300 shadow-sm"
+              >
+                <Plus size={15} />
+                {LANGUAGES.find(l => l.id === selectedLanguage)?.newChatLabel || 'Naya Chat'}
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 custom-scrollbar border-t border-zinc-800/40">
+              <div className="flex items-center gap-2 px-2 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                <History size={12} />
+                <span>{t.puraniChats}</span>
+              </div>
+
+              {!currentUser ? (
+                <div className="p-3.5 bg-zinc-900/40 border border-zinc-800/60 rounded-xl text-center">
+                  <Lock size={18} className="mx-auto text-amber-500/60 mb-1.5" />
+                  <p className="text-xs font-medium text-zinc-400">{t.saveHistoryPromptTitle}</p>
+                  <p className="text-[10px] text-zinc-600 mt-0.5">{t.saveHistoryPromptSub}</p>
+                  <button
+                    onClick={() => {
+                      setShowLeftMobileMenu(false);
+                      setAuthTab('login');
+                      setShowAuthModal(true);
+                    }}
+                    className="mt-2.5 text-xs font-bold text-amber-400 underline hover:text-amber-300"
+                  >
+                    {t.signIn}
+                  </button>
+                </div>
+              ) : savedChats.length === 0 ? (
+                <p className="text-xs text-zinc-600 text-center py-6 italic">{t.noSavedChats}</p>
+              ) : (
+                savedChats.map((chat) => (
+                  <div
+                    key={chat.id}
+                    onClick={() => {
+                      setShowLeftMobileMenu(false);
+                      loadSavedChat(chat);
+                    }}
+                    className={`w-full text-left p-2.5 px-3 rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${currentChatId === chat.id
+                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                        : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                      }`}
+                  >
+                    <div className="truncate mr-2">
+                      <p className="text-[11px] font-semibold truncate group-hover:text-amber-400 transition-colors">
+                        {chat.title}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 mt-0.5">
+                        <span>{chat.date}</span>
+                        <span>•</span>
+                        <span>{chat.schemes.length} {t.schemesCount}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => handleDeleteChat(chat.id, e)}
+                        title="Delete chat"
+                        className="p-1 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                      <ChevronRight size={13} className="text-zinc-600 group-hover:text-amber-400" />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-3 border-t border-zinc-800/50 text-[10px] font-medium text-zinc-600 flex flex-col gap-1.5">
+              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> System Online</div>
+              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]"></span> Lang: {selectedLanguage || 'None'}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MOBILE RIGHT DRAWER OVERLAY --- */}
+      {showRightMobileMenu && (
+        <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
+          <div
+            className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowRightMobileMenu(false)}
+          ></div>
+          <div className="relative w-72 max-w-[85vw] bg-zinc-950 border-l border-zinc-800 flex flex-col h-full z-10 p-4 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto">
+            <div className="pb-3 mb-3 border-b border-zinc-800 flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles size={14} />
+                <span>{t.matchesTitle}</span>
+              </span>
+              <button
+                onClick={() => setShowRightMobileMenu(false)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-lg bg-zinc-900"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+              {!currentUser && suggestedSchemes.length > 0 ? (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center space-y-3 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+                  <div className="w-9 h-9 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto text-base">
+                    🔒
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-amber-200 text-xs">{t.schemesMatchedTitle}</h4>
+                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-relaxed">
+                      {t.schemesMatchedSub}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowRightMobileMenu(false);
+                      setAuthTab('signup');
+                      setShowAuthModal(true);
+                    }}
+                    className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-zinc-950 font-bold rounded-xl text-[10px] uppercase tracking-wider"
+                  >
+                    {t.unlockSchemesNow}
+                  </button>
+                </div>
+              ) : suggestedSchemes.length === 0 ? (
+                <div className="text-zinc-600 text-[10px] uppercase tracking-widest text-center mt-6 p-6 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/30 font-medium leading-relaxed">
+                  {t.awaitingDataTitle}<br /><span className="text-zinc-700">{t.awaitingDataSub}</span>
+                </div>
+              ) : (
+                suggestedSchemes.map((scheme, idx) => (
+                  <div key={idx} className="bg-zinc-900/50 p-3.5 rounded-2xl border border-zinc-800 group relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                    <p className="font-medium text-zinc-200 leading-snug text-xs">{scheme.name}</p>
+                    <div className="mt-2.5 inline-block">
+                      <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        {scheme.eligibility_match}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- AUTH GATING MODAL ("Unlock Your Beneficial Schemes") --- */}
       {showAuthModal && (
