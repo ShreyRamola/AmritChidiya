@@ -4,8 +4,29 @@ import json
 import os
 import time
 from typing import Optional, Dict, List, Any
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
+try:
+    from supabase import create_client, Client
+except ImportError:
+    create_client = None
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "amrit_chidiya.db")
+
+# ── Supabase Setup with SQLite Fallback ──────────────────────────────────────
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+
+supabase_client: Optional[Any] = None
+if SUPABASE_URL and SUPABASE_KEY and create_client:
+    try:
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("Connected to Supabase Cloud Database successfully!")
+    except Exception as sb_err:
+        print("Supabase initialization notice (using SQLite fallback):", sb_err)
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -50,6 +71,27 @@ def create_user(email: str, name: str, password: str) -> Dict[str, Any]:
     pwd_hash = _hash_password(password)
     user_id = f"user_{int(time.time()*1000)}_{os.urandom(3).hex()}"
     
+    if supabase_client:
+        try:
+            res = supabase_client.table("users").select("id").eq("email", clean_email).execute()
+            if res.data and len(res.data) > 0:
+                raise ValueError("An account with this email already exists.")
+            
+            user_payload = {
+                "id": user_id,
+                "email": clean_email,
+                "name": clean_name,
+                "password_hash": pwd_hash,
+                "created_at": time.time()
+            }
+            supabase_client.table("users").insert(user_payload).execute()
+            return {"id": user_id, "email": clean_email, "name": clean_name}
+        except ValueError as ve:
+            raise ve
+        except Exception as sb_err:
+            print("Supabase create_user notice, using SQLite fallback:", sb_err)
+
+    # SQLite Fallback
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM users WHERE email = ?", (clean_email,))
@@ -68,6 +110,19 @@ def authenticate_user(email: str, password: str) -> Dict[str, Any]:
     clean_email = email.strip().lower()
     pwd_hash = _hash_password(password)
     
+    if supabase_client:
+        try:
+            res = supabase_client.table("users").select("id, email, name, password_hash").eq("email", clean_email).execute()
+            if not res.data or res.data[0]["password_hash"] != pwd_hash:
+                raise ValueError("Invalid email or password.")
+            row = res.data[0]
+            return {"id": row["id"], "email": row["email"], "name": row["name"]}
+        except ValueError as ve:
+            raise ve
+        except Exception as sb_err:
+            print("Supabase auth notice, using SQLite fallback:", sb_err)
+
+    # SQLite Fallback
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -81,6 +136,30 @@ def authenticate_user(email: str, password: str) -> Dict[str, Any]:
         return {"id": row["id"], "email": row["email"], "name": row["name"]}
 
 def get_user_chats(user_id: str) -> List[Dict[str, Any]]:
+    if supabase_client:
+        try:
+            res = supabase_client.table("chats").select("*").eq("user_id", user_id).order("updated_at", desc=True).execute()
+            result = []
+            for r in res.data or []:
+                try:
+                    msgs = json.loads(r["messages_json"]) if isinstance(r["messages_json"], str) else r["messages_json"]
+                    schemes = json.loads(r["schemes_json"]) if isinstance(r["schemes_json"], str) else r["schemes_json"]
+                    result.append({
+                        "id": r["id"],
+                        "title": r["title"],
+                        "date": r["date"],
+                        "language": r["language"],
+                        "messages": msgs,
+                        "schemes": schemes,
+                        "updatedAt": r["updated_at"]
+                    })
+                except Exception as e:
+                    print("Error parsing chat json from Supabase:", e)
+            return result
+        except Exception as sb_err:
+            print("Supabase get_user_chats notice, using SQLite fallback:", sb_err)
+
+    # SQLite Fallback
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -116,6 +195,24 @@ def save_user_chat(user_id: str, chat_data: Dict[str, Any]) -> List[Dict[str, An
     schemes_json = json.dumps(chat_data.get("schemes", []))
     updated_at = chat_data.get("updatedAt") or time.time()
     
+    if supabase_client:
+        try:
+            payload = {
+                "id": chat_id,
+                "user_id": user_id,
+                "title": title,
+                "date": date_str,
+                "language": language,
+                "messages_json": messages_json,
+                "schemes_json": schemes_json,
+                "updated_at": updated_at
+            }
+            supabase_client.table("chats").upsert(payload).execute()
+            return get_user_chats(user_id)
+        except Exception as sb_err:
+            print("Supabase save_user_chat notice, using SQLite fallback:", sb_err)
+
+    # SQLite Fallback
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -134,6 +231,14 @@ def save_user_chat(user_id: str, chat_data: Dict[str, Any]) -> List[Dict[str, An
     return get_user_chats(user_id)
 
 def delete_user_chat(user_id: str, chat_id: str) -> List[Dict[str, Any]]:
+    if supabase_client:
+        try:
+            supabase_client.table("chats").delete().eq("id", chat_id).eq("user_id", user_id).execute()
+            return get_user_chats(user_id)
+        except Exception as sb_err:
+            print("Supabase delete_user_chat notice, using SQLite fallback:", sb_err)
+
+    # SQLite Fallback
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM chats WHERE id = ? AND user_id = ?", (chat_id, user_id))

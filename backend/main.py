@@ -3,18 +3,18 @@ import re
 import tempfile
 from typing import List, Dict, Optional, Any
 
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 import edge_tts
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from dotenv import load_dotenv
 from pydantic import BaseModel
 from groq import Groq
 
 from agents.chat_agent import chat_agent
 import database as db
-
-load_dotenv(override=True)
 
 app = FastAPI(
     title="AmritChidiya",
