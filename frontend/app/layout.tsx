@@ -23,6 +23,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({
@@ -33,9 +34,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased overflow-hidden`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased overflow-hidden bg-zinc-950 text-zinc-100 dark`}
     >
-      <body className="h-full max-h-screen overflow-hidden flex flex-col touch-none select-none">{children}</body>
+      <body className="h-full max-h-screen overflow-hidden flex flex-col touch-none select-none bg-zinc-950 text-zinc-100">{children}</body>
     </html>
   );
 }
