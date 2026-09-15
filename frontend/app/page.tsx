@@ -20,7 +20,8 @@ import {
   ShieldCheck,
   Trash2,
   Menu,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -36,7 +37,46 @@ import {
 } from '@/lib/auth';
 import MarkdownContent from '@/components/MarkdownContent';
 
+const SCHEME_URL_MAP: Record<string, string> = {
+  'national scholarship portal': 'https://scholarships.gov.in',
+  'nsp': 'https://scholarships.gov.in',
+  'up post matric scholarship': 'https://scholarship.up.gov.in',
+  'up pre matric scholarship': 'https://scholarship.up.gov.in',
+  'up scholarship': 'https://scholarship.up.gov.in',
+  'pm kisan samman nidhi': 'https://pmkisan.gov.in',
+  'pm kisan': 'https://pmkisan.gov.in',
+  'pm vishwakarma': 'https://pmvishwakarma.gov.in',
+  'pm awas yojana': 'https://pmaymis.gov.in',
+  'pm mudra yojana': 'https://www.mudra.org.in',
+  'mahadbt': 'https://mahadbt.maharashtra.gov.in',
+  'sukanya samriddhi': 'https://www.indiapost.gov.in',
+  'ayushman bharat': 'https://pmjay.gov.in',
+  'pm-jay': 'https://pmjay.gov.in',
+  'e-shram': 'https://eshram.gov.in',
+  'pm svanidhi': 'https://pmsvanidhi.mohua.gov.in',
+  'pm yashasvi': 'https://yet.nta.ac.in',
+  'begum hazrat mahal': 'https://bhmns-medu.gov.in',
+  'aicte pragati': 'https://www.aicte-india.org/schemes/students-development-schemes',
+  'naps': 'https://www.apprenticeshipindia.gov.in',
+  'medhasoft': 'https://medhasoft.bih.nic.in',
+  'mp scholarship': 'https://scholarshipportal.mp.nic.in',
+};
+
+function resolveSchemeUrl(schemeName: string, extractedUrl?: string): string {
+  if (extractedUrl && (extractedUrl.startsWith('http://') || extractedUrl.startsWith('https://'))) {
+    return extractedUrl;
+  }
+  const cleanLower = schemeName.toLowerCase().trim();
+  for (const [key, url] of Object.entries(SCHEME_URL_MAP)) {
+    if (cleanLower.includes(key)) {
+      return url;
+    }
+  }
+  return `https://www.myscheme.gov.in/search?q=${encodeURIComponent(schemeName)}`;
+}
+
 const LANGUAGES = [
+
   {
     id: 'Hindi',
     label: 'हिंदी (Hindi)',
@@ -320,7 +360,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
 export default function Home() {
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ role: string, content: string }[]>([]);
-  const [suggestedSchemes, setSuggestedSchemes] = useState<{ name: string, eligibility_match: string }[]>([]);
+  const [suggestedSchemes, setSuggestedSchemes] = useState<{ name: string, eligibility_match: string, apply_url?: string }[]>([]);
+
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -486,8 +527,16 @@ export default function Home() {
     }
   };
 
-  function extractSchemesFromMessages(messages: { role: string, content: string }[]): { name: string, eligibility_match: string }[] {
-    const schemes: { name: string, eligibility_match: string }[] = [];
+  const handleStepByStepHelp = (schemeName: string) => {
+
+    setShowRightMobileMenu(false);
+    setShowLeftMobileMenu(false);
+    const prompt = `Can you please guide me step-by-step on how to register and apply for ${schemeName}? Please provide official site link, required documents checklist, and step-by-step registration steps.`;
+    sendMessage(prompt);
+  };
+
+  function extractSchemesFromMessages(messages: { role: string, content: string }[]): { name: string, eligibility_match: string, apply_url?: string }[] {
+    const schemes: { name: string, eligibility_match: string, apply_url?: string }[] = [];
     const seen = new Set<string>();
 
     const ignoreTerms = new Set([
@@ -513,6 +562,13 @@ export default function Home() {
       const candidates = [...headingMatches, ...numberMatches];
       for (let c of candidates) {
         if (!c) continue;
+        let extractedUrl: string | undefined = undefined;
+        const linkMatch = c.match(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/);
+        if (linkMatch) {
+          c = linkMatch[1];
+          extractedUrl = linkMatch[2];
+        }
+
         let clean = c.replace(/[\u1F600-\u1F64F\u1F300-\u1F5FF\u1F680-\u1F6FF\u2600-\u26FF\u2700-\u27BF]/g, '').trim();
         clean = clean.replace(/^\d+\.\s*/, '').replace(/[\*:;]+$/, '').trim();
         const cleanLower = clean.toLowerCase();
@@ -526,13 +582,18 @@ export default function Home() {
           !['sawalon', 'jawaab', 'suggestions', 'income', 'background', 'question'].some(p => cleanLower.includes(p))
         ) {
           seen.add(cleanLower);
-          schemes.push({ name: clean, eligibility_match: '100% ELIGIBLE - MATCHED PROFILE' });
+          schemes.push({
+            name: clean,
+            eligibility_match: '100% ELIGIBLE - MATCHED PROFILE',
+            apply_url: resolveSchemeUrl(clean, extractedUrl)
+          });
         }
       }
     }
 
     return schemes;
   }
+
 
   const loadSavedChat = (chat: SavedChat) => {
     stopSpeaking();
@@ -1471,23 +1532,61 @@ export default function Home() {
                   {t.awaitingDataTitle}<br /><span className="text-zinc-700">{t.awaitingDataSub}</span>
                 </div>
               ) : (
-                suggestedSchemes.map((scheme, idx) => (
-                  <div key={idx} className="bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 hover:border-amber-500/50 transition-all duration-300 group relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/0 group-hover:bg-amber-500 transition-colors duration-300"></div>
-                    <p className="font-medium text-zinc-200 leading-snug group-hover:text-amber-400 transition-colors text-xs sm:text-sm">{scheme.name}</p>
-                    <div className="mt-3 inline-block">
-                      <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20 backdrop-blur-sm">
-                        {scheme.eligibility_match}
-                      </span>
+                suggestedSchemes.map((scheme, idx) => {
+                  const schemeUrl = scheme.apply_url || resolveSchemeUrl(scheme.name);
+                  return (
+                    <div key={idx} className="bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 hover:border-amber-500/50 transition-all duration-300 group relative overflow-hidden flex flex-col justify-between">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/0 group-hover:bg-amber-500 transition-colors duration-300"></div>
+
+                      <div>
+                        <a
+                          href={schemeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-amber-300 hover:text-amber-200 transition-colors text-xs sm:text-sm inline-flex items-center gap-1.5 underline underline-offset-4 decoration-amber-500/30 hover:decoration-amber-400 group-hover:text-amber-400"
+                          title={`Click to visit official application portal: ${schemeUrl}`}
+                        >
+                          <span>{scheme.name}</span>
+                          <ExternalLink size={13} className="shrink-0 text-amber-400" />
+                        </a>
+
+                        <div className="mt-2.5">
+                          <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20 backdrop-blur-sm">
+                            {scheme.eligibility_match}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3.5 pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-1.5">
+                        <a
+                          href={schemeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-bold text-zinc-300 hover:text-amber-300 bg-zinc-800/80 hover:bg-zinc-800 px-2 py-1 rounded-lg border border-zinc-700/60 transition-all inline-flex items-center gap-1 shrink-0"
+                        >
+                          <span>Apply Site</span>
+                          <ExternalLink size={10} />
+                        </a>
+                        <button
+                          onClick={() => handleStepByStepHelp(scheme.name)}
+                          className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1 rounded-lg border border-amber-500/30 transition-all inline-flex items-center gap-1"
+                          title="Ask AI for step-by-step registration guide"
+                        >
+                          <span>Step-by-Step Help 🚀</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
+
               )}
             </div>
           </div>
         </div>
 
       {/* --- MOBILE LEFT DRAWER OVERLAY --- */}
+
+
       {showLeftMobileMenu && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
@@ -1673,17 +1772,52 @@ export default function Home() {
                   {t.awaitingDataTitle}<br /><span className="text-zinc-700">{t.awaitingDataSub}</span>
                 </div>
               ) : (
-                suggestedSchemes.map((scheme, idx) => (
-                  <div key={idx} className="bg-zinc-900/50 p-3.5 rounded-2xl border border-zinc-800 group relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-                    <p className="font-medium text-zinc-200 leading-snug text-xs">{scheme.name}</p>
-                    <div className="mt-2.5 inline-block">
-                      <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                        {scheme.eligibility_match}
-                      </span>
+                suggestedSchemes.map((scheme, idx) => {
+                  const schemeUrl = scheme.apply_url || resolveSchemeUrl(scheme.name);
+                  return (
+                    <div key={idx} className="bg-zinc-900/50 p-3.5 rounded-2xl border border-zinc-800 group relative overflow-hidden flex flex-col justify-between">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+
+                      <div>
+                        <a
+                          href={schemeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-amber-300 hover:text-amber-200 transition-colors text-xs inline-flex items-center gap-1.5 underline underline-offset-4 decoration-amber-500/30"
+                          title={`Click to visit official application portal: ${schemeUrl}`}
+                        >
+                          <span>{scheme.name}</span>
+                          <ExternalLink size={12} className="shrink-0 text-amber-400" />
+                        </a>
+
+                        <div className="mt-2 inline-block">
+                          <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                            {scheme.eligibility_match}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-2.5 border-t border-zinc-800/60 flex items-center justify-between gap-1">
+                        <a
+                          href={schemeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[9px] font-bold text-zinc-300 hover:text-amber-300 bg-zinc-800 px-2 py-1 rounded border border-zinc-700 transition-all inline-flex items-center gap-1 shrink-0"
+                        >
+                          <span>Apply Site</span>
+                          <ExternalLink size={9} />
+                        </a>
+                        <button
+                          onClick={() => handleStepByStepHelp(scheme.name)}
+                          className="text-[9px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30 transition-all inline-flex items-center gap-1"
+                        >
+                          <span>Step-by-Step Help 🚀</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
+
               )}
             </div>
           </div>

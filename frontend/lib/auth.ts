@@ -10,7 +10,7 @@ export interface SavedChat {
   date: string;
   language: string;
   messages: { role: string; content: string }[];
-  schemes: { name: string; eligibility_match: string }[];
+  schemes: { name: string; eligibility_match: string; apply_url?: string }[];
   updatedAt: number;
 }
 

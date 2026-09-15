@@ -13,10 +13,46 @@ import operator
 from pydantic import BaseModel, Field
 
 from prompts.system_prompt import SYSTEM_PROMPT
+import urllib.parse
+
+SCHEME_URL_MAP = {
+    "national scholarship portal": "https://scholarships.gov.in",
+    "nsp": "https://scholarships.gov.in",
+    "up post matric scholarship": "https://scholarship.up.gov.in",
+    "up pre matric scholarship": "https://scholarship.up.gov.in",
+    "up scholarship": "https://scholarship.up.gov.in",
+    "pm kisan samman nidhi": "https://pmkisan.gov.in",
+    "pm kisan": "https://pmkisan.gov.in",
+    "pm vishwakarma": "https://pmvishwakarma.gov.in",
+    "pm awas yojana": "https://pmaymis.gov.in",
+    "pm mudra yojana": "https://www.mudra.org.in",
+    "mahadbt": "https://mahadbt.maharashtra.gov.in",
+    "sukanya samriddhi": "https://www.indiapost.gov.in",
+    "ayushman bharat": "https://pmjay.gov.in",
+    "pm-jay": "https://pmjay.gov.in",
+    "e-shram": "https://eshram.gov.in",
+    "pm svanidhi": "https://pmsvanidhi.mohua.gov.in",
+    "pm yashasvi": "https://yet.nta.ac.in",
+    "begum hazrat mahal": "https://bhmns-medu.gov.in",
+    "aicte pragati": "https://www.aicte-india.org/schemes/students-development-schemes",
+    "naps": "https://www.apprenticeshipindia.gov.in",
+    "medhasoft": "https://medhasoft.bih.nic.in",
+    "mp scholarship": "https://scholarshipportal.mp.nic.in",
+}
+
+def resolve_scheme_url(scheme_name: str, extracted_url: str = None) -> str:
+    if extracted_url and (extracted_url.startswith("http://") or extracted_url.startswith("https://")):
+        return extracted_url
+    clean_lower = scheme_name.lower().strip()
+    for key, url in SCHEME_URL_MAP.items():
+        if key in clean_lower:
+            return url
+    return f"https://www.myscheme.gov.in/search?q={urllib.parse.quote(scheme_name)}"
 
 class Scheme(BaseModel):
     name: str = Field(description="The exact name of the specific scheme or scholarship (e.g. 'Post Matric Scholarship for Minorities'). DO NOT use generic portal names like 'National Scholarship Portal' or 'NSP'.")
     eligibility_match: str = Field(description="Eligibility match percentage or reason (e.g. '87% match' or 'Eligible based on income')")
+    apply_url: Optional[str] = Field(default=None, description="Official application site URL (e.g. 'https://scholarship.up.gov.in')")
 
 class AgentResponse(BaseModel):
     message: str = Field(description="Your conversational response in the selected language")
@@ -54,9 +90,9 @@ def extract_schemes_from_text(text: str) -> list:
         return []
 
     # Extract schemes from explicit scheme headers or numbered scheme items
-    matches = re.findall(r'###\s*(?:\d+\.\s*)?\*\*(.*?)\*\*', text)
-    if not matches:
-        matches = re.findall(r'\*\*\d+\.\s*(.*?)\*\*', text)
+    raw_matches = re.findall(r'###\s*(?:\d+\.\s*)?\*\*(.*?)\*\*', text)
+    if not raw_matches:
+        raw_matches = re.findall(r'\*\*\d+\.\s*(.*?)\*\*', text)
     
     ignore_terms = {
         "scholarship", "scholarships", "scheme", "schemes", "yojana", "grant", "portal",
@@ -65,8 +101,17 @@ def extract_schemes_from_text(text: str) -> list:
     }
 
     seen = set()
-    for m in matches:
-        clean_name = re.sub(r'[\U00010000-\U0010ffff\u2600-\u26FF\u2700-\u27BF]', '', m).strip()
+    for m in raw_matches:
+        extracted_url = None
+        # Check if matched text contains markdown link [Name](URL)
+        link_match = re.search(r'\[(.*?)\]\((https?://[^\s)]+)\)', m)
+        if link_match:
+            clean_name = link_match.group(1)
+            extracted_url = link_match.group(2)
+        else:
+            clean_name = m
+
+        clean_name = re.sub(r'[\U00010000-\U0010ffff\u2600-\u26FF\u2700-\u27BF]', '', clean_name).strip()
         clean_name = re.sub(r'^\d+\.\s*', '', clean_name).strip()
         clean_name = clean_name.rstrip('*').rstrip(':').strip()
         
@@ -76,8 +121,13 @@ def extract_schemes_from_text(text: str) -> list:
             and not any(phrase in clean_name.lower() for phrase in ["sawalon", "jawaab", "suggestions", "income", "background", "question"])
             and 4 < len(clean_name) < 90):
             seen.add(clean_name.lower())
-            schemes.append({'name': clean_name, 'eligibility_match': '100% ELIGIBLE - MATCHED PROFILE'})
+            schemes.append({
+                'name': clean_name,
+                'eligibility_match': '100% ELIGIBLE - MATCHED PROFILE',
+                'apply_url': resolve_scheme_url(clean_name, extracted_url)
+            })
     return schemes
+
 
 
 # ── Convert raw dicts → LangChain message objects ───────────────────────────

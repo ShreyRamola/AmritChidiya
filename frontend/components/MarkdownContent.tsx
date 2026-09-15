@@ -3,6 +3,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ExternalLink } from 'lucide-react';
 
 interface MarkdownContentProps {
   content: string;
@@ -15,9 +16,23 @@ export default function MarkdownContent({ content, isAssistant = true }: Markdow
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          a({ href, children }) {
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 underline underline-offset-4 decoration-amber-500/50 hover:decoration-amber-400 transition-all bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20"
+              >
+                <span>{children}</span>
+                <ExternalLink size={12} className="shrink-0 text-amber-400" />
+              </a>
+            );
+          },
           p({ children }) {
             return <p className="mb-2.5 last:mb-0 text-zinc-200">{children}</p>;
           },
+
           strong({ children }) {
             return (
               <strong className="font-bold text-amber-300 drop-shadow-[0_0_8px_rgba(245,158,11,0.15)]">
