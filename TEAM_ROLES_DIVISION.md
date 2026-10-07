@@ -78,19 +78,19 @@ graph TD
 
 ### 📁 Assigned Codebase Files
 - [backend/main.py](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/main.py) — FastAPI web service, STT audio transcoding pipeline, Edge-TTS streaming handler, CORS origin regex middleware.
-- [backend/requirements.txt](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/requirements.txt) — Dependency specifications (`fastapi`, `uvicorn`, `edge-tts`, `groq`, `slowapi`, `python-jose`).
-
-### ⚙️ Step-by-Step Working Mechanism
-1. **Voice Capture & Upload:** Citizen speaks $\rightarrow$ browser records a WebM audio blob $\rightarrow$ POSTed to `/transcribe` endpoint in `backend/main.py`.
+- [backend/requirements.txt](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/requirements.txt) — Dependency specification### ⚙️ Step-by-Step Working Mechanism
+1. **Voice Capture & Ephemeral Upload:** Citizen speaks $\rightarrow$ browser records a WebM audio blob $\rightarrow$ POSTed to `/transcribe` in `backend/main.py`. The file is saved inside a `tempfile.NamedTemporaryFile` and is strictly deleted in a `finally: os.unlink()` block, ensuring citizen voice recordings never linger on disk.
 2. **Regional Phonetic Prompting:** Member 2 supplies Whisper with an exact prompt of Indian states, categories, and education levels so Whisper doesn't mistranslate Indian terms into English.
 3. **Silence Hallucination Cleansing:** Whisper often hallucinates phrases like *"Thank you for watching"* when someone pauses. Member 2's code checks an exact blacklist of silence artifacts and strips them cleanly.
 4. **Text-to-Speech Sanitization:** The AI response has markdown asterisks (`**bold**`), hashtags (`###`), and links. Member 2's `clean_text_for_speech` function removes all markup so Edge-TTS reads smooth, lifelike sentences.
-5. **FastAPI Routing & Security:** Hosts `/chat`, `/transcribe`, `/tts`, `/signup`, `/login`, enforces CORS origin regex (`^https://.*\.vercel\.app$`), and blocks DDoS attacks with SlowAPI.
+5. **FastAPI Routing & Rate Limiting:** Hosts `/chat`, `/transcribe`, `/tts`, `/signup`, `/login`, enforces CORS origin regex (`^https://.*\.vercel\.app$`), and blocks DDoS and credential attacks with SlowAPI rate limits (20/min for STT, 30/min for TTS).
 
 ### 🎤 Interview / Viva Questions & Model Answers
 - **Q1: Why did you choose Groq Whisper over other Speech-to-Text APIs?**  
   *Answer:* Groq runs on specialized LPU (Language Processing Unit) chips, providing sub-500ms transcription latency. This makes voice conversations feel real-time rather than having an awkward 3-second delay.
-- **Q2: How does the text sanitization function work before TTS?**  
+- **Q2: How do you protect user privacy for voice recordings?**  
+  *Answer:* Audio files are treated as ephemeral streams. They are created in temporary OS memory/disk via `tempfile.NamedTemporaryFile` and unconditionally unlinked (`os.unlink()`) inside a `finally` block immediately after transcription finishes.
+- **Q3: How does the text sanitization function work before TTS?**  
   *Answer:* `clean_text_for_speech()` uses regular expressions to strip out markdown asterisks, hashes, code blocks, and URLs. It turns bullet points into natural sentence pauses so the voice sounds like a caring human companion.
 
 ---
@@ -98,49 +98,51 @@ graph TD
 ## 5. Member 3: AI Agent, Scheme Logic & Cyber Safety Lead
 
 ### 🌟 Member USP (Unique Selling Proposition)
-> **"Anti-Hallucination Welfare Match Engine & Domain Cyber Shield"**  
-> **Why this matters for a beginner:** If an AI makes up a fake scholarship or sends a student to an expired link, citizens lose faith in the system. Member 3 built a strict LangGraph state machine that prohibits fake schemes, combined with the **Official Domain Shield & Scam Checker** (<code>ScamShieldModal.tsx</code>) that verifies authentic <code>.gov.in</code> domains and protects citizens from fake WhatsApp schemes demanding registration fees.
+> **"Anti-Hallucination Welfare Match Engine, Domain Cyber Shield & National Helpline Bridge"**  
+> **Why this matters for a beginner:** If an AI makes up a fake scholarship or sends a student to an expired link, citizens lose faith in the system. Member 3 built a strict LangGraph state machine that prohibits fake schemes, combined with the **Official Domain Shield & Scam Checker** (<code>ScamShieldModal.tsx</code>) that verifies authentic <code>.gov.in</code> domains, teaches the 4 Golden Rules of fraud defense, links directly to the National Cyber Crime Helpline (1930), and protects citizens from fake WhatsApp schemes demanding registration fees.
 
 ### 📁 Assigned Codebase Files
 - [backend/agents/chat_agent.py](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/agents/chat_agent.py) — LangGraph state graph, scheme extraction regex engine, official government URL resolver.
-- [backend/prompts/system_prompt.py](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/prompts/system_prompt.py) — Core system prompt, phase transition protocols, hyperlinked scheme markdown templates.
-- [frontend/components/ScamShieldModal.tsx](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/frontend/components/ScamShieldModal.tsx) — Official domain verification tool and phishing link detector.
+- [backend/prompts/system_prompt.py](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/prompts/system_prompt.py) — Core system prompt, role confinement, phase transition protocols, hyperlinked scheme markdown templates.
+- [frontend/components/ScamShieldModal.tsx](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/frontend/components/ScamShieldModal.tsx) — Official domain verification tool, 4-rule scam detector, and 1930 Cyber Helpline bridge.
 
 ### ⚙️ Step-by-Step Working Mechanism
 1. **Phase 1 (Profile Intake):** If a student says *"Mujhe scholarship chahiye"*, the agent checks if State, Income, Category, and Education are provided. If missing, it asks polite clarifying questions and suppresses scheme extraction.
 2. **Phase 2 (Eligibility Delivery):** Once details are verified, the agent outputs exact scheme names formatted in structured markdown headers.
-3. **Government URL Mapper:** `SCHEME_URL_MAP` in `chat_agent.py` maps each scheme name directly to official government portals (`scholarships.gov.in`, `pmkisan.gov.in`, `scholarship.up.gov.in`).
+3. **Government URL Mapper & Fallback:** `SCHEME_URL_MAP` in `chat_agent.py` maps each scheme name directly to official government portals (`scholarships.gov.in`, `pmkisan.gov.in`, `scholarship.up.gov.in`). If an unmapped scheme is detected, it securely defaults to `https://www.myscheme.gov.in/search?q=...` (India's official National Scheme Portal), guaranteeing zero phishing links.
 4. **Phase 3 (Step-by-Step Roadmap):** Delivers a 5-step registration breakdown with required document checklists.
-5. **Cyber Shield Inspection:** When a citizen pastes a WhatsApp link into `ScamShieldModal.tsx`, the code extracts the hostname, checks for official `.gov.in`/`.nic.in` accreditation, and flags phishing TLDs (`.xyz`, `.top`).
+5. **Cyber Shield & Fraud Education:** When a citizen pastes a WhatsApp link into `ScamShieldModal.tsx`, the code extracts the hostname, checks for official `.gov.in`/`.nic.in` accreditation, flags phishing TLDs (`.xyz`, `.top`), and displays the 4 Golden Rules with a direct dialer to 1930.
 
 ### 🎤 Interview / Viva Questions & Model Answers
 - **Q1: How does LangGraph prevent LLM hallucinations in government schemes?**  
   *Answer:* LangGraph enforces a structured state machine. The prompt explicitly prohibits suggesting schemes during profile intake, and the regex extractor only accepts schemes formatted in strict headers that match verified criteria.
 - **Q2: How does the Cyber Shield protect against WhatsApp fraud?**  
-  *Answer:* It inspects the domain structure. All genuine Indian central and state welfare portals must end in `.gov.in` or `.nic.in`. If a link ends in `.xyz` or asks for private UPI fees, it triggers a high-risk scam alert.
+  *Answer:* It inspects the domain structure. All genuine Indian central and state welfare portals must end in `.gov.in` or `.nic.in`. If a link ends in `.xyz` or asks for private UPI fees, it triggers a high-risk scam alert and points the citizen to the National Cyber Crime Helpline (1930).
 
 ---
 
 ## 6. Member 4: Database, Auth Security & DevOps Lead
 
 ### 🌟 Member USP (Unique Selling Proposition)
-> **"Zero-Trust Hybrid Cloud Persistence with Bcrypt Salted Auth & Fail-Safe SQLite Replicas"**  
-> **Why this matters for a beginner:** User passwords must be protected with bank-grade security, and a welfare app must never crash if the internet or cloud goes down. Member 4 built a dual-database architecture: connects to Supabase Cloud PostgreSQL when online, with an automatic, instant fallback to local SQLite without crashing the user session. Hardened security with salted **Bcrypt (12 rounds)**, signed **24-hour HS256 JWT tokens**, and SlowAPI rate limiting.
+> **"Zero-Trust Hybrid Cloud Persistence with 12-Round Bcrypt Auth, IDOR Defense & Fail-Safe SQLite Replicas"**  
+> **Why this matters for a beginner:** User passwords must be protected with bank-grade security, citizen chat histories must never be snooped on by other accounts, and a welfare app must never crash if the internet or cloud goes down. Member 4 built a dual-database architecture (Supabase Cloud PostgreSQL + auto SQLite failover), hardened by salted **Bcrypt (12 rounds)** with automatic legacy hash migration, signed **24-hour HS256 JWT tokens**, strict **IDOR ownership checks**, **SecurityHeadersMiddleware** (nosniff, DENY, XSS), and SlowAPI rate limiting.
 
 ### 📁 Assigned Codebase Files
-- [backend/database.py](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/database.py) — Supabase Client API manager, automatic SQLite fallback engine, bcrypt password hashing, chat history CRUD.
+- [backend/database.py](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/database.py) — Supabase Client API manager, automatic SQLite fallback engine, 12-round bcrypt password hashing with legacy migration, chat history CRUD.
 - [backend/supabase_schema.sql](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/backend/supabase_schema.sql) — Supabase PostgreSQL schema with primary keys, foreign keys, cascade deletes, and RLS policies.
 - [frontend/lib/auth.ts](file:///c:/Users/shrey/Downloads/AmritChidiya%20%282%29/AmritChidiya/frontend/lib/auth.ts) — Client authentication state machine, JWT bearer header injector, localStorage cache synchronization.
 
 ### ⚙️ Step-by-Step Working Mechanism
-1. **Bcrypt Password Salting:** When a user signs up, Member 4's `_hash_password()` generates a unique 12-round cryptographic salt. Even if two users have the same password, their hashes are completely different.
-2. **Digital Wristbands (JWT Tokens):** Upon login, the backend issues an HS256 signed JWT token valid for 24 hours. The frontend attaches this token in the `Authorization: Bearer <token>` header for all private chat calls.
-3. **Dual-Database Failover:** `database.py` tries Supabase Cloud PostgreSQL first. If offline, it routes queries to local SQLite (`amrit_chidiya.db`) without throwing an unhandled exception.
-4. **Rate Limiting (SlowAPI):** Limits requests (5/min for signup, 10/min for login, 30/min for chat) to prevent bots from crashing the server.
-5. **DevOps & Production Deployment:** Manages environment variables on Render (Backend) and Vercel (Frontend), ensuring cross-cloud CORS works seamlessly.
+1. **Bcrypt Password Salting & Migration:** When a user signs up, Member 4's `_hash_password()` generates a unique 12-round cryptographic salt (`bcrypt.gensalt(12)`). For legacy accounts created under older SHA-256 schemas, `_verify_password()` and `_needs_rehash()` detect legacy hashes and upgrade them transparently to bcrypt upon successful login.
+2. **Digital Wristbands (JWT Tokens) & IDOR Defense:** Upon login, the backend issues an HS256 signed JWT token valid for 24 hours. The frontend attaches this token in the `Authorization: Bearer <token>` header. Endpoints `/chats/{user_id}` enforce strict ownership (`if current_user["id"] != user_id: raise 403 Forbidden`), completely preventing Insecure Direct Object References.
+3. **HTTP Security Hardening:** `SecurityHeadersMiddleware` injects 5 defensive HTTP headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, strict Referrer-Policy, and restrictive Permissions-Policy.
+4. **Dual-Database Failover:** `database.py` tries Supabase Cloud PostgreSQL first. If offline or credentials are missing, it routes queries to local SQLite (`amrit_chidiya.db`) without throwing an unhandled exception. Local SQLite files are strictly gitignored to prevent credential leaks.
+5. **Rate Limiting (SlowAPI) & DevOps Deployment:** Limits requests (5/min for signup, 10/min for login, 30/min for chat) to prevent bots from crashing the server. Manages production environment variables on Render and Vercel.
 
 ### 🎤 Interview / Viva Questions & Model Answers
 - **Q1: Why is Bcrypt safer than plain SHA-256 for passwords?**  
-  *Answer:* SHA-256 is designed to be fast, which makes it easy for attackers with GPUs to try billions of guesses per second. Bcrypt is intentionally slow and salted, making brute-force and rainbow table attacks computationally unfeasible.
-- **Q2: Why use a hybrid Supabase + SQLite database?**  
+  *Answer:* SHA-256 is designed to be fast, which makes it easy for attackers with GPUs to try billions of guesses per second. Bcrypt is intentionally slow, adaptive, and salted (12 rounds = 4,096 iterations), making brute-force and rainbow table attacks computationally unfeasible.
+- **Q2: What is IDOR and how does Member 4 prevent it?**  
+  *Answer:* IDOR (Insecure Direct Object Reference) happens when a malicious user changes an ID in the URL (e.g. `/chats/user_123` to `/chats/user_456`) to spy on another citizen's private chats. Member 4 prevents this by verifying that the user ID embedded inside the signed JWT token strictly matches the target resource ID, returning `403 Forbidden` if they differ.
+- **Q3: Why use a hybrid Supabase + SQLite database?**  
   *Answer:* Supabase Cloud allows users to access their saved chats from any phone or computer. But if an internet drop occurs in a rural village, the automatic SQLite fallback guarantees the app continues working locally.

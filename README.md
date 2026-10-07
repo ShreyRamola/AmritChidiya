@@ -32,10 +32,26 @@ Each team member spearheads a distinct technological pillar that powers AmritChi
 - 🌐 **Multilingual Conversational AI**: Native conversational support across **5 languages** (Hindi, Hinglish, English, Marathi, Tamil).
 - 🎙️ **Hands-Free Talk Mode**: Full-duplex conversational voice mode powered by Groq Whisper Large v3 and Edge-TTS neural voices.
 - 🧮 **Yojana Eligibility Calculator**: Interactive multi-criteria matrix dynamically evaluating State, Category, Income, and Profession to estimate annual financial benefits.
-- 🛡️ **Cyber Shield & Fake Scheme Checker**: Instant link verification tool protecting citizens from fraudulent WhatsApp schemes by verifying `.gov.in` and `.nic.in` domains.
+- 🛡️ **Cyber Shield & Fake Scheme Checker**: Instant link verification tool protecting citizens from fraudulent WhatsApp schemes by verifying `.gov.in` and `.nic.in` domains with 1930 Cyber Helpline integration.
 - 📄 **Printable CSC Dossier**: One-click printable PDF/dossier for village Common Service Centers (Jan Seva Kendra) with mandatory document checklists (Aadhaar, DBT/NPCI bank passbook).
 - 🔗 **Direct Official Portal Links**: Verified links to official central and state portals (`scholarships.gov.in`, `scholarship.up.gov.in`, `pmkisan.gov.in`, `myscheme.gov.in`).
-- 🔐 **Hardened Security & Privacy**: Bcrypt-salted password hashing, HS256 JWT authorization, SlowAPI rate-limiting, and security headers.
+- 🔐 **Hardened Security & Privacy**: 12-round Bcrypt password hashing, HS256 JWT authorization, strict IDOR ownership checks, SlowAPI rate-limiting, and ephemeral audio cleanup.
+
+---
+
+## 🛡️ Enterprise Security & Privacy Matrix
+
+AmritChidiya enforces defense-in-depth across 7 security and privacy layers:
+
+| Security Pillar | Code Implementation | Threat / Risk Mitigated |
+|---|---|---|
+| **1. Credential Encryption** | `bcrypt.gensalt(rounds=12)` in `database.py` with auto-migration from legacy SHA-256. | Rainbow table attacks, GPU brute-forcing, password database leaks. |
+| **2. Session & IDOR Defense** | HS256 JWT tokens (24h expiry) + strict user-ownership validation on `/chats/{user_id}`. | Insecure Direct Object References, token spoofing, unauthorized chat access. |
+| **3. HTTP Security Headers** | `SecurityHeadersMiddleware` enforcing `nosniff`, `DENY` clickjacking, XSS filter, strict referrer. | MIME sniffing, framing/clickjacking attacks, cross-origin referer data leaks. |
+| **4. DoS & Abuse Throttling** | SlowAPI rate limits on `/signup` (5/min), `/login` (10/min), `/chat` (30/min), STT (20/min). | Bot registration floods, brute-force dictionary attacks, LLM API quota drain. |
+| **5. Voice Data Privacy** | `tempfile.NamedTemporaryFile` + guaranteed `os.unlink()` cleanup in `finally` blocks. | Persistent citizen voice recordings on server disks, audio privacy leakage. |
+| **6. AI Anti-Hallucination** | Canonical `SCHEME_URL_MAP` + `myscheme.gov.in` fallback; Whisper silence hallucination filter. | Fake welfare portals, phishing links, ghost queries generated on ambient room noise. |
+| **7. Citizen Anti-Fraud Shield** | `ScamShieldModal` (4 Golden Rules + 1930 Cyber Helpline); guidance vs direct apply disclaimers. | WhatsApp advance fee scams, Aadhaar OTP theft, deceptive dark patterns. |
 
 ---
 

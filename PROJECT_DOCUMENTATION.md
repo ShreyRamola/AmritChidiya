@@ -190,30 +190,78 @@ Each team member is the sole technical owner of one critical department:
 - Full-duplex hands-free conversation powered by Groq Whisper Large v3 (sub-500ms transcription) with geographic phonetic prompts.
 - Microsoft Edge-TTS neural speech synthesis across 5 Indian languages with real-time text sanitization.
 
-### 🔐 5. Enterprise Security & Session Authorization
-- Salted 12-round Bcrypt password encryption.
-- Signed 24-hour HS256 JWT access tokens.
-- SlowAPI request throttling and security headers middleware.
-- Production CORS origin regex allowing secure communication between Vercel and Render.
+## 6. Comprehensive Security, Privacy & Safety Architecture
+
+AmritChidiya implements a defense-in-depth, 7-layer security and citizen privacy matrix across its frontend, backend API, AI pipelines, and database layers:
+
+```mermaid
+graph TD
+    subgraph "Layer 1: Client & Network Edge"
+        L1A["CORS Origin Regex (*.vercel.app)"]
+        L1B["SecurityHeadersMiddleware (nosniff, DENY, XSS)"]
+        L1C["SlowAPI IP Rate Limiting (5-30 req/min)"]
+    end
+
+    subgraph "Layer 2: Identity & Access Control"
+        L2A["Bcrypt (12 Rounds + Salt)"]
+        L2B["HS256 Signed JWT (24h Expiry)"]
+        L2C["IDOR Prevention (Strict User ID Ownership Checks)"]
+        L2D["Legacy Hash Auto-Migration (SHA-256 to Bcrypt)"]
+    end
+
+    subgraph "Layer 3: Ephemeral Audio & Data Privacy"
+        L3A["Temp Audio with Guaranteed os.unlink() in finally"]
+        L3B["Whisper Silence Hallucination Suppression"]
+        L3C["Local SQLite Git-Ignore & Repository Leak Protection"]
+    end
+
+    subgraph "Layer 4: AI Guardrails & Cyber Safety"
+        L4A["Canonical Official URL Resolver (SCHEME_URL_MAP)"]
+        L4B["myscheme.gov.in Fallback (Zero Phishing)"]
+        L4C["ScamShield Modal (4 Golden Rules + 1930 Helpline)"]
+        L4D["Eligibility Calculator Transparency Disclaimer"]
+    end
+
+    L1A --> L2B
+    L1B --> L2B
+    L1C --> L2A
+    L2B --> L2C
+    L2C --> L3A
+    L3A --> L4A
+```
 
 ---
 
-## 7. Security & Database Architecture (Explained Simply)
+### 🛡️ Detailed Breakdown of the 7 Security Pillars
 
-### Hybrid Storage Model
+| Security Layer | Implementation Mechanism in Code | Threat / Vulnerability Mitigated |
+|:---|:---|:---|
+| **1. Password & Credential Security** | `bcrypt.hashpw(pwd, bcrypt.gensalt(12))` in `backend/database.py` with automatic detection and seamless re-hashing of legacy SHA-256 passwords upon login (`_verify_password`, `_needs_rehash`). Strict RFC regex validation for emails, password length bounds (6–128 chars), and name truncation (max 100 chars). | Rainbow table attacks, GPU brute-force attacks, credential stuffing, and plaintext password leaks. |
+| **2. Session & IDOR Access Control** | Signed HS256 JWT tokens with 24-hour expiry (`exp`), issued-at (`iat`), and subject claim (`sub`) generated via `python-jose`. `/verify-token` endpoint for frontend session reconciliation. Strict IDOR enforcement on `/chats/{user_id}` and `/chats/{user_id}/{chat_id}` (`if current_user['id'] != user_id: raise 403 Forbidden`). | Unauthorized data access, session hijacking, replay attacks, and cross-account chat snooping. |
+| **3. HTTP & Network Layer Hardening** | `SecurityHeadersMiddleware` injecting `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: camera=(), microphone=(self), geolocation=()`. Strict CORS whitelist (`localhost`, `127.0.0.1`, `https://amrit-chidiya.vercel.app`, and regex `^https://.*\.vercel\.app$`). | MIME-type sniffing, Clickjacking (framing attacks), reflected XSS, cross-origin referer data leaks, and unauthorized origin API abuse. |
+| **4. Denial-of-Service & Abuse Throttling** | SlowAPI IP-based rate limiting (`get_remote_address`): `/signup` (5/min), `/login` (10/min), `/chat` (30/min), `/transcribe` (20/min), `/tts` (30/min) with custom `RateLimitExceeded` error handling. | Automated bot registration spam, brute-force dictionary attacks on login, and API token exhaustion on LLM/Speech models. |
+| **5. Citizen Voice Privacy & Ephemeral Storage** | `tempfile.NamedTemporaryFile` for uploaded audio chunks with guaranteed cleanup in `finally: if os.path.exists(temp_path): os.unlink(temp_path)`. Local SQLite database (`backend/amrit_chidiya.db`) untracked from Git and permanently excluded via `.gitignore`. | Server disk bloat, persistent audio recording storage, citizen voice leaks, and public GitHub repository database leaks. |
+| **6. AI Anti-Hallucination & URL Safety** | `SCHEME_URL_MAP` in `chat_agent.py` mapping verified schemes to official `.gov.in` / `.nic.in` / `.org.in` portals. Dynamic fallback redirects unknown queries directly to `https://www.myscheme.gov.in/search?q=...` (National Portal). Whisper ambient silence hallucination blacklist ("Thank you for watching", "Subtitles by", etc.). | AI hallucination of fake portals, phishing links, and ghost audio transcripts generated from background silence. |
+| **7. Citizen Anti-Fraud & Scam Shield** | Interactive `ScamShieldModal.tsx` evaluating user-submitted links against genuine `.gov.in` / `.nic.in` domains. 4-Rule Fraud Detector (Aadhaar OTP warnings, zero WhatsApp processing fees, official SMS sender IDs, National Cyber Crime Helpline 1930 / cybercrime.gov.in). Transparency disclaimer in `EligibilityCalculatorModal.tsx` clarifying guidance vs. official submission. | WhatsApp fee scams, phishing schemes, Aadhaar OTP theft, deceptive dark patterns, and citizen financial fraud. |
+
+---
+
+## 7. Dual-Database Resiliency Architecture
+
 ```mermaid
 graph LR
-    BE["FastAPI Backend"]
-    Supabase["Supabase Cloud PostgreSQL"]
-    SQLite["Local SQLite3 Database"]
+    BE["FastAPI Backend (database.py)"]
+    Supabase["Supabase Cloud PostgreSQL (Primary)"]
+    SQLite["Local SQLite3 Database (Fail-Safe Replica)"]
 
-    BE -->|Primary Connection| Supabase
-    BE -.->|Auto-Failover on Network Error| SQLite
+    BE -->|1. Try Cloud REST / PostgREST| Supabase
+    BE -.->|2. Auto-Failover on Connection Drop or Offline| SQLite
 ```
 
-- **Why Dual Database?** Supabase Cloud allows citizens to access their chat history from any device anywhere in the world. But in rural areas with spotty internet connectivity, the automatic SQLite fallback guarantees the platform continues running locally without throwing an error screen.
-- **Why Bcrypt over SHA-256?** SHA-256 is designed to be fast, making it vulnerable to GPU brute-force attacks. Bcrypt is intentionally slow and salted, making rainbow table and brute-force attacks computationally unfeasible.
-- **Why JWT Tokens?** Instead of re-checking user credentials on every single database request, the backend issues a signed cryptographic token that verifies the user's identity securely for 24 hours.
+- **Why Dual Database?** Supabase Cloud allows citizens to access their chat history and saved schemes from any smartphone or computer. However, in rural Indian villages with intermittent internet connectivity, the automatic SQLite fallback guarantees the platform continues running locally without throwing an unhandled crash or 500 server error.
+- **Relational Integrity:** Foreign key cascade deletion (`ON DELETE CASCADE`) ensures that if a citizen deletes their profile or account, all related chat threads, messages, and matched scheme records are completely purged from the system, preventing orphaned records.
+- **Why Bcrypt over SHA-256?** SHA-256 is designed to be mathematically fast, making it vulnerable to modern GPU clusters capable of testing billions of hashes per second. Bcrypt is intentionally slow, adaptive, and salted (12 rounds = 4,096 iterations), making brute-force and rainbow table attacks computationally unfeasible.
+- **Why JWT Tokens?** Instead of performing expensive database lookups on every single user interaction, the backend issues an HS256 signed cryptographic token that verifies the citizen's identity for 24 hours.
 
 ---
 
