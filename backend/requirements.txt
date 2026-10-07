@@ -9,4 +9,8 @@ groq
 python-multipart
 edge-tts
 supabase
+bcrypt
+python-jose[cryptography]
+slowapi
+duckduckgo-search
 

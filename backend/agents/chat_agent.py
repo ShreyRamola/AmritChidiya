@@ -8,7 +8,7 @@ import re
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, END
-from typing import TypedDict, List, Annotated
+from typing import TypedDict, List, Annotated, Optional
 import operator
 from pydantic import BaseModel, Field
 
@@ -148,10 +148,49 @@ def extract_schemes_from_text(text: str) -> list:
 
 
 
+# ── Live Real-Time Scheme Search Grounding ───────────────────────────────────
+def search_live_scheme_updates(query: str, max_results: int = 3) -> str:
+    """Fetch live, up-to-date scheme announcements from official government portals."""
+    try:
+        from duckduckgo_search import DDGS
+        search_query = f"{query} site:gov.in OR site:nic.in OR site:myscheme.gov.in"
+        with DDGS() as ddgs:
+            results = list(ddgs.text(search_query, max_results=max_results))
+            if not results:
+                results = list(ddgs.text(f"{query} government scheme update india", max_results=max_results))
+            if results:
+                summary = "\n[LIVE REAL-TIME GOVERNMENT DATA FROM OFFICIAL PORTALS]\n"
+                for r in results:
+                    summary += f"- Title: {r.get('title')}\n  URL: {r.get('href')}\n  Update: {r.get('body')}\n"
+                summary += "[END LIVE DATA]\n"
+                return summary
+    except Exception as e:
+        print(f"Live search notice: {e}")
+    return ""
+
+
 # ── Convert raw dicts → LangChain message objects ───────────────────────────
 def _to_lc_messages(raw_messages: list, user_context: dict) -> list:
     language = user_context.get("language", "English") if user_context else "English"
     formatted_prompt = SYSTEM_PROMPT.format(language=language)
+
+    # Check if user query asks for latest/recent/deadline/current year info
+    last_user_msg = ""
+    for m in reversed(raw_messages):
+        role = m.get("role") if isinstance(m, dict) else getattr(m, "role", "")
+        if role == "user":
+            last_user_msg = m.get("content") if isinstance(m, dict) else getattr(m, "content", "")
+            break
+
+    live_indicators = [
+        "latest", "new", "update", "recent", "deadline", "date", "last date", "current",
+        "2024", "2025", "2026", "aakhiri", "tarikh", "badlav", "kab tak", "kab aayega", "status"
+    ]
+    if last_user_msg and any(w in last_user_msg.lower() for w in live_indicators):
+        live_info = search_live_scheme_updates(last_user_msg)
+        if live_info:
+            formatted_prompt += f"\n\n{live_info}\nUse this verified real-time official portal data to answer accurately."
+
     result = [SystemMessage(content=formatted_prompt)]
     for m in raw_messages:
         role = m.get("role") if isinstance(m, dict) else m.role

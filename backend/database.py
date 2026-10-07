@@ -1,8 +1,9 @@
 import sqlite3
-import hashlib
 import json
 import os
 import time
+import re
+import bcrypt
 from typing import Optional, Dict, List, Any
 from dotenv import load_dotenv
 
@@ -62,13 +63,69 @@ def init_db():
 
 init_db()
 
+# ── Secure Password Hashing with bcrypt ──────────────────────────────────────
 def _hash_password(password: str) -> str:
-    return hashlib.sha256(password.strip().encode('utf-8')).hexdigest()
+    """Hash password with bcrypt (salted, slow hash — resistant to rainbow tables)."""
+    pwd_bytes = password.strip().encode('utf-8')
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
+def _verify_password(password: str, hashed: str) -> bool:
+    """Verify password against bcrypt hash. Also handles legacy SHA-256 migration."""
+    pwd_bytes = password.strip().encode('utf-8')
+    
+    # Check if this is a legacy SHA-256 hash (64 hex chars, no $2b$ prefix)
+    if not hashed.startswith('$2b$') and len(hashed) == 64 and all(c in '0123456789abcdef' for c in hashed):
+        import hashlib
+        legacy_hash = hashlib.sha256(pwd_bytes).hexdigest()
+        return legacy_hash == hashed
+    
+    try:
+        return bcrypt.checkpw(pwd_bytes, hashed.encode('utf-8'))
+    except Exception:
+        return False
+
+def _needs_rehash(hashed: str) -> bool:
+    """Check if hash is legacy SHA-256 and needs migration to bcrypt."""
+    return not hashed.startswith('$2b$') and len(hashed) == 64
+
+# ── Input Validation ─────────────────────────────────────────────────────────
+EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
+def validate_email(email: str) -> str:
+    """Validate and normalize email address."""
+    clean = email.strip().lower()
+    if not EMAIL_REGEX.match(clean):
+        raise ValueError("Invalid email format. Please provide a valid email address.")
+    if len(clean) > 254:
+        raise ValueError("Email address is too long.")
+    return clean
+
+def validate_password(password: str) -> str:
+    """Enforce minimum password strength."""
+    pwd = password.strip()
+    if len(pwd) < 6:
+        raise ValueError("Password must be at least 6 characters long.")
+    if len(pwd) > 128:
+        raise ValueError("Password is too long (max 128 characters).")
+    return pwd
+
+def validate_name(name: str, fallback_email: str) -> str:
+    """Sanitize display name."""
+    clean = name.strip()
+    if not clean:
+        clean = fallback_email.split('@')[0]
+    if len(clean) > 100:
+        clean = clean[:100]
+    return clean
+
+
+# ── User Operations ──────────────────────────────────────────────────────────
 def create_user(email: str, name: str, password: str) -> Dict[str, Any]:
-    clean_email = email.strip().lower()
-    clean_name = name.strip() or clean_email.split('@')[0]
-    pwd_hash = _hash_password(password)
+    clean_email = validate_email(email)
+    clean_password = validate_password(password)
+    clean_name = validate_name(name, clean_email)
+    pwd_hash = _hash_password(clean_password)
     user_id = f"user_{int(time.time()*1000)}_{os.urandom(3).hex()}"
     
     if supabase_client:
@@ -107,15 +164,27 @@ def create_user(email: str, name: str, password: str) -> Dict[str, Any]:
     return {"id": user_id, "email": clean_email, "name": clean_name}
 
 def authenticate_user(email: str, password: str) -> Dict[str, Any]:
-    clean_email = email.strip().lower()
-    pwd_hash = _hash_password(password)
+    clean_email = validate_email(email)
+    clean_password = validate_password(password)
     
     if supabase_client:
         try:
             res = supabase_client.table("users").select("id, email, name, password_hash").eq("email", clean_email).execute()
-            if not res.data or res.data[0]["password_hash"] != pwd_hash:
+            if not res.data:
                 raise ValueError("Invalid email or password.")
             row = res.data[0]
+            if not _verify_password(clean_password, row["password_hash"]):
+                raise ValueError("Invalid email or password.")
+            
+            # Migrate legacy SHA-256 hash to bcrypt on successful login
+            if _needs_rehash(row["password_hash"]):
+                new_hash = _hash_password(clean_password)
+                try:
+                    supabase_client.table("users").update({"password_hash": new_hash}).eq("id", row["id"]).execute()
+                    print(f"Migrated password hash to bcrypt for user {row['id']}")
+                except Exception:
+                    pass  # Non-critical — will migrate on next login
+            
             return {"id": row["id"], "email": row["email"], "name": row["name"]}
         except ValueError as ve:
             raise ve
@@ -130,11 +199,39 @@ def authenticate_user(email: str, password: str) -> Dict[str, Any]:
             (clean_email,)
         )
         row = cursor.fetchone()
-        if not row or row["password_hash"] != pwd_hash:
+        if not row or not _verify_password(clean_password, row["password_hash"]):
             raise ValueError("Invalid email or password.")
+        
+        # Migrate legacy SHA-256 hash to bcrypt on successful login
+        if _needs_rehash(row["password_hash"]):
+            new_hash = _hash_password(clean_password)
+            cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, row["id"]))
+            conn.commit()
+            print(f"Migrated password hash to bcrypt for user {row['id']}")
             
         return {"id": row["id"], "email": row["email"], "name": row["name"]}
 
+def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch a user by ID (used by JWT verification)."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("users").select("id, email, name").eq("id", user_id).execute()
+            if res.data:
+                row = res.data[0]
+                return {"id": row["id"], "email": row["email"], "name": row["name"]}
+        except Exception:
+            pass
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, name FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        if row:
+            return {"id": row["id"], "email": row["email"], "name": row["name"]}
+    return None
+
+
+# ── Chat Operations ──────────────────────────────────────────────────────────
 def get_user_chats(user_id: str) -> List[Dict[str, Any]]:
     if supabase_client:
         try:

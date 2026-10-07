@@ -4,6 +4,7 @@ node_modules/
 out/
 build/
 dist/
+*.tsbuildinfo
 
 # Python & Virtual Environments
 .venv/
@@ -17,10 +18,18 @@ __pycache__/
 
 # Environment & Secret Files
 .env
+.env.*
+*.env
+**/.env*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Databases & Local Storage
+*.db
+*.sqlite
+*.sqlite3
 
 # OS & IDE Files
 .DS_Store

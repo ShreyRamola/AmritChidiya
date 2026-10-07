@@ -21,7 +21,10 @@ import {
   Trash2,
   Menu,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Calculator,
+  FileText,
+  Printer
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -32,10 +35,15 @@ import {
   getUserChatsLocal,
   saveUserChatAsync,
   deleteUserChatAsync,
+  getAuthHeaders,
+  getAuthToken,
   SavedChat,
   User
 } from '@/lib/auth';
 import MarkdownContent from '@/components/MarkdownContent';
+import CscDossierModal from '@/components/CscDossierModal';
+import EligibilityCalculatorModal from '@/components/EligibilityCalculatorModal';
+import ScamShieldModal from '@/components/ScamShieldModal';
 
 const SCHEME_URL_MAP: Record<string, string> = {
   'national scholarship portal': 'https://scholarships.gov.in',
@@ -161,7 +169,10 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tapDoneSub: "पूरा होने पर 'Done' दबाएं या बोलना बंद करें",
     noSpeechDetected: "आपकी आवाज़ सुन रहा हूँ... छात्रवृत्ति या योजनाओं के बारे में कुछ भी पूछें।",
     noSavedChats: "कोई पुरानी चैट नहीं मिली। योजनाएं सहेजने के लिए बातचीत शुरू करें!",
-    schemesCount: "योजनाएं"
+    schemesCount: "योजनाएं",
+    calculatorBtn: "कैलकुलेटर",
+    domainShieldBtn: "डोमेन शील्ड",
+    cscDossierBtn: "CSC पर्ची"
   },
   Hinglish: {
     authTitle: "Aap Sirf Ek Kadam Dur Hain! ✨",
@@ -209,7 +220,10 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tapDoneSub: "Tap Done or stop speaking when finished",
     noSpeechDetected: "Listening for your voice... Ask anything about scholarships or schemes.",
     noSavedChats: "No saved chats yet. Start chatting to save your scheme matches!",
-    schemesCount: "schemes"
+    schemesCount: "schemes",
+    calculatorBtn: "Calculator",
+    domainShieldBtn: "Domain Shield",
+    cscDossierBtn: "CSC Parchi"
   },
   English: {
     authTitle: "You Are Just One Step Away! ✨",
@@ -257,7 +271,10 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tapDoneSub: "Tap Done or stop speaking when finished",
     noSpeechDetected: "Listening for your voice... Ask anything about scholarships or schemes.",
     noSavedChats: "No saved chats yet. Start chatting to save your scheme matches!",
-    schemesCount: "schemes"
+    schemesCount: "schemes",
+    calculatorBtn: "Calculator",
+    domainShieldBtn: "Domain Shield",
+    cscDossierBtn: "CSC Dossier"
   },
   Marathi: {
     authTitle: "तुम्ही फक्त एक पाऊल दूर आहात! ✨",
@@ -305,7 +322,10 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tapDoneSub: "पूर्ण झाल्यावर 'Done' दाबा किंवा बोलणे थांबवा",
     noSpeechDetected: "तुमचा आवाज ऐकत आहे... शिष्यवृत्ती किंवा योजनांबद्दल काहीही विचारा.",
     noSavedChats: "अद्याप कोणत्याही सेव्ह केलेल्या चॅट्स नाहीत.",
-    schemesCount: "योजना"
+    schemesCount: "योजना",
+    calculatorBtn: "कॅल्क्युलेटर",
+    domainShieldBtn: "डोमेन शील्ड",
+    cscDossierBtn: "CSC पावती"
   },
   Tamil: {
     authTitle: "நீங்கள் ஒரு அடி மட்டுமே தொலைவில் உள்ளீர்கள்! ✨",
@@ -353,7 +373,10 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tapDoneSub: "முடிந்ததும் முடிந்தது என்பதைத் தட்டவும்",
     noSpeechDetected: "உங்கள் குரலுக்காகக் காத்திருக்கிறது... கல்வி உதவித்தொகை பற்றி ஏதேனும் கேட்கலாம்.",
     noSavedChats: "சேமிக்கப்பட்ட அரட்டைகள் எதுவும் இல்லை.",
-    schemesCount: "திட்டங்கள்"
+    schemesCount: "திட்டங்கள்",
+    calculatorBtn: "கால்குலேட்டர்",
+    domainShieldBtn: "பாதுகாப்பு கவசம்",
+    cscDossierBtn: "CSC ஆவணம்"
   }
 };
 
@@ -390,6 +413,25 @@ export default function Home() {
   const [authError, setAuthError] = useState('');
   const [authSuccessMsg, setAuthSuccessMsg] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+
+  // USP Feature Modals
+  const [showCscDossierModal, setShowCscDossierModal] = useState(false);
+  const [showCalculatorModal, setShowCalculatorModal] = useState(false);
+  const [showScamShieldModal, setShowScamShieldModal] = useState(false);
+
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: '', textColor: '' };
+    let score = 0;
+    if (pass.length >= 6) score += 1;
+    if (pass.length >= 8) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^a-zA-Z0-9]/.test(pass)) score += 1;
+    
+    if (score <= 1) return { score: 1, label: 'Weak (min 6 characters)', textColor: 'text-red-400' };
+    if (score === 2) return { score: 2, label: 'Fair', textColor: 'text-amber-400' };
+    if (score === 3) return { score: 3, label: 'Good', textColor: 'text-emerald-400' };
+    return { score: 4, label: 'Strong & Secure', textColor: 'text-emerald-300' };
+  };
 
   // Mobile Drawer Overlay States
   const [showLeftMobileMenu, setShowLeftMobileMenu] = useState(false);
@@ -767,8 +809,10 @@ export default function Home() {
         try {
           setLoading(true);
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          const token = getAuthToken();
           const response = await fetch(`${apiUrl}/transcribe`, {
             method: 'POST',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
             body: formData,
           });
 
@@ -892,7 +936,7 @@ export default function Home() {
         try {
           const res = await fetch(`${apiUrl}/tts`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ text: sentences[index], language: langId || 'Hindi' })
           });
           if (res.ok) {
@@ -997,7 +1041,7 @@ export default function Home() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const res = await fetch(`${apiUrl}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           user_context: { language: selectedLanguage }
@@ -1128,8 +1172,10 @@ export default function Home() {
 
         try {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          const token = getAuthToken();
           const response = await fetch(`${apiUrl}/transcribe`, {
             method: 'POST',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
             body: formData,
           });
 
@@ -1391,7 +1437,27 @@ export default function Home() {
                 </h2>
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                {/* USP: Eligibility Calculator Button */}
+                <button
+                  onClick={() => setShowCalculatorModal(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-semibold hover:bg-amber-500/20 hover:text-amber-200 transition-all shadow-sm cursor-pointer"
+                  title={t.calculatorBtn || "Calculator"}
+                >
+                  <Calculator size={13} className="text-amber-400" />
+                  <span className="hidden md:inline">{t.calculatorBtn || "Calculator"}</span>
+                </button>
+
+                {/* USP: Official Domain Shield & Anti-Scam Checker */}
+                <button
+                  onClick={() => setShowScamShieldModal(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-semibold hover:bg-emerald-500/20 hover:text-emerald-200 transition-all shadow-sm cursor-pointer"
+                  title={t.domainShieldBtn || "Domain Shield"}
+                >
+                  <ShieldCheck size={13} className="text-emerald-400" />
+                  <span className="hidden md:inline">{t.domainShieldBtn || "Domain Shield"}</span>
+                </button>
+
                 {/* Mobile Matches Button */}
                 <button
                   onClick={() => setShowRightMobileMenu(true)}
@@ -1529,10 +1595,20 @@ export default function Home() {
 
           {/* Right Sidebar (Desktop Fixed) */}
           <div className="hidden lg:flex w-64 sm:w-72 shrink-0 bg-zinc-950/50 backdrop-blur-3xl border-l border-zinc-800/50 p-4 flex-col z-10 h-full overflow-hidden">
-            <h3 className="text-zinc-300 font-semibold mb-4 flex items-center gap-2.5 text-xs uppercase tracking-wider">
-              <span className="w-6 h-px bg-gradient-to-r from-amber-500 to-transparent"></span>
-              {t.matchesTitle}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-zinc-300 font-semibold flex items-center gap-2 text-xs uppercase tracking-wider">
+                <span className="w-4 h-px bg-gradient-to-r from-amber-500 to-transparent"></span>
+                {t.matchesTitle}
+              </h3>
+              <button
+                onClick={() => setShowCscDossierModal(true)}
+                className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-sm"
+                title={t.cscDossierBtn || "CSC Dossier"}
+              >
+                <FileText size={11} />
+                <span>{t.cscDossierBtn || "CSC Dossier"}</span>
+              </button>
+            </div>
 
             <div className="space-y-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
 
@@ -1766,12 +1842,22 @@ export default function Home() {
                 <Sparkles size={14} />
                 <span>{t.matchesTitle}</span>
               </span>
-              <button
-                onClick={() => setShowRightMobileMenu(false)}
-                className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-lg bg-zinc-900"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowCscDossierModal(true)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-lg"
+                  title={t.cscDossierBtn || "CSC Dossier"}
+                >
+                  <FileText size={11} />
+                  <span>{t.cscDossierBtn || "CSC Dossier"}</span>
+                </button>
+                <button
+                  onClick={() => setShowRightMobileMenu(false)}
+                  className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-lg bg-zinc-900"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
@@ -1948,6 +2034,35 @@ export default function Home() {
                   onChange={(e) => setAuthPass(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 focus:border-amber-500/50 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none transition-colors"
                 />
+                {authTab === 'signup' && authPass && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex gap-1 h-1.5 w-full">
+                      {[1, 2, 3, 4].map((step) => {
+                        const strength = getPasswordStrength(authPass);
+                        return (
+                          <div
+                            key={step}
+                            className={`flex-1 rounded-full transition-all duration-300 ${
+                              strength.score >= step
+                                ? strength.score === 1
+                                  ? 'bg-red-500'
+                                  : strength.score === 2
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500'
+                                : 'bg-zinc-800'
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-zinc-500">Security rating</span>
+                      <span className={getPasswordStrength(authPass).textColor}>
+                        {getPasswordStrength(authPass).label}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {authError && (
@@ -2076,7 +2191,7 @@ export default function Home() {
                 {talkTranscript && (
                   <p className="text-amber-300/90 font-medium">
                     <span className="text-zinc-500 text-[9px] font-bold uppercase mr-1">You:</span>
-                    "{talkTranscript}"
+                    &ldquo;{talkTranscript}&rdquo;
                   </p>
                 )}
                 {talkResponseText && (
@@ -2135,6 +2250,38 @@ export default function Home() {
 
         </div>
       )}
+
+      {/* --- USP 1: CSC APPLICATION DOSSIER MODAL (जन सेवा केंद्र पर्ची) --- */}
+      <CscDossierModal
+        isOpen={showCscDossierModal}
+        onClose={() => setShowCscDossierModal(false)}
+        userName={currentUser?.name}
+        userEmail={currentUser?.email}
+        selectedLanguage={selectedLanguage}
+        schemes={suggestedSchemes}
+      />
+
+      {/* --- USP 2: YOJANA ELIGIBILITY CALCULATOR MODAL (पात्रता कैलकुलेटर) --- */}
+      <EligibilityCalculatorModal
+        isOpen={showCalculatorModal}
+        onClose={() => setShowCalculatorModal(false)}
+        selectedLanguage={selectedLanguage}
+        onApplyToChat={(query) => {
+          if (!selectedLanguage) {
+            handleLanguageSelect('Hindi');
+          }
+          setTimeout(() => {
+            sendMessage(query);
+          }, 300);
+        }}
+      />
+
+      {/* --- USP 3: OFFICIAL DOMAIN SHIELD & SCAM CHECKER MODAL (साइबर सुरक्षा शील्ड) --- */}
+      <ScamShieldModal
+        isOpen={showScamShieldModal}
+        onClose={() => setShowScamShieldModal(false)}
+        selectedLanguage={selectedLanguage}
+      />
 
     </div>
   );

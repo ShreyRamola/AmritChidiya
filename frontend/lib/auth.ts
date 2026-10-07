@@ -15,12 +15,72 @@ export interface SavedChat {
 }
 
 const SESSION_KEY = 'amrit_chidiya_user_session';
+const TOKEN_KEY = 'amrit_chidiya_auth_token';
 const CHATS_PREFIX = 'amrit_chidiya_chats_';
 
 const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// ── Token Management ────────────────────────────────────────────────────────
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setAuthToken(token: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+}
+
+function clearAuthToken(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+/**
+ * Build headers with JWT Authorization for protected API calls.
+ */
+export function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+/**
+ * Check if the stored token is expired (client-side check).
+ * Returns true if token is missing or expired.
+ */
+export function isTokenExpired(): boolean {
+  const token = getAuthToken();
+  if (!token) return true;
+
+  try {
+    // Decode JWT payload (base64url) without verification — server does real verification
+    const payloadB64 = token.split('.')[1];
+    const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')));
+    const expiry = payload.exp * 1000; // Convert to milliseconds
+    return Date.now() >= expiry;
+  } catch {
+    return true;
+  }
+}
+
+
+// ── User Session ────────────────────────────────────────────────────────────
 export function getCurrentUser(): User | null {
   if (typeof window === 'undefined') return null;
+
+  // If token is expired, clear everything
+  if (isTokenExpired()) {
+    clearAuthToken();
+    localStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -43,8 +103,11 @@ export async function signUpAsync(email: string, name: string, pass: string): Pr
       throw new Error(data.detail || 'Registration failed');
     }
     const user: User = data.user;
+    const token: string = data.token;
+
     if (typeof window !== 'undefined') {
       localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+      setAuthToken(token);
     }
     return user;
   } catch (err: any) {
@@ -65,8 +128,11 @@ export async function loginAsync(email: string, pass: string): Promise<User> {
       throw new Error(data.detail || 'Invalid email or password.');
     }
     const user: User = data.user;
+    const token: string = data.token;
+
     if (typeof window !== 'undefined') {
       localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+      setAuthToken(token);
     }
     return user;
   } catch (err: any) {
@@ -77,12 +143,15 @@ export async function loginAsync(email: string, pass: string): Promise<User> {
 export function logout(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(SESSION_KEY);
+  clearAuthToken();
 }
 
 export async function getUserChatsAsync(userId: string): Promise<SavedChat[]> {
   const apiUrl = getApiUrl();
   try {
-    const res = await fetch(`${apiUrl}/chats/${userId}`);
+    const res = await fetch(`${apiUrl}/chats/${userId}`, {
+      headers: getAuthHeaders()
+    });
     if (res.ok) {
       const data = await res.json();
       const serverChats: SavedChat[] = data.chats || [];
@@ -90,6 +159,10 @@ export async function getUserChatsAsync(userId: string): Promise<SavedChat[]> {
         localStorage.setItem(CHATS_PREFIX + userId, JSON.stringify(serverChats));
       }
       return serverChats;
+    }
+    // If 401, token expired — auto-logout
+    if (res.status === 401) {
+      logout();
     }
   } catch (e) {
     console.warn("Backend chats fetch notice:", e);
@@ -119,7 +192,7 @@ export async function saveUserChatAsync(userId: string, chat: SavedChat): Promis
   try {
     const res = await fetch(`${apiUrl}/chats/${userId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(chat)
     });
     if (res.ok) {
@@ -130,6 +203,9 @@ export async function saveUserChatAsync(userId: string, chat: SavedChat): Promis
         }
         return data.chats;
       }
+    }
+    if (res.status === 401) {
+      logout();
     }
   } catch (e) {
     console.warn("Backend chat save notice:", e);
@@ -157,7 +233,8 @@ export async function deleteUserChatAsync(userId: string, chatId: string): Promi
   const apiUrl = getApiUrl();
   try {
     const res = await fetch(`${apiUrl}/chats/${userId}/${chatId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getAuthHeaders()
     });
     if (res.ok) {
       const data = await res.json();
@@ -167,6 +244,9 @@ export async function deleteUserChatAsync(userId: string, chatId: string): Promi
         }
         return data.chats;
       }
+    }
+    if (res.status === 401) {
+      logout();
     }
   } catch (e) {
     console.warn("Backend chat delete notice:", e);

@@ -1,43 +1,57 @@
 # 🦅 AmritChidiya (अमृतचिड़िया)
 
-> **"Apni Sone Ki Chidiya Ko Phir Se Udaan Do"** 🇮🇳
-
-AmritChidiya is a full-stack, AI-powered voice and chat assistant that connects Indian citizens with government schemes, scholarships, and welfare benefits in **5 major Indian languages** (Hindi, Hinglish, English, Marathi, and Tamil).
+> **"Apni Sone Ki Chidiya Ko Phir Se Udaan Do"** 🇮🇳  
+> *A full-stack, AI-powered multilingual voice and chat welfare assistant connecting Indian citizens with verified government schemes, scholarships, and cyber safety tools.*
 
 ---
 
 ## 📚 Complete Project Documentation & Team Division
 
-Detailed project guides have been created in the main directory:
+Detailed project guides are available in the repository:
 
-- 📖 **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)** — Comprehensive architecture guide, core feature breakdown, step-by-step system execution flow, technology stack, and installation guide.
-- 👥 **[TEAM_ROLES_DIVISION.md](TEAM_ROLES_DIVISION.md)** — Structured project breakdown divided across **4 team member roles** (Frontend UI/UX Lead, Backend API & Speech Lead, AI Agent & Scheme Logic Lead, DB/Auth & DevOps Lead).
+- 📖 **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)** — Full technical architecture guide, data flow, component hierarchy, security protocols, and installation guide.
+- 👥 **[TEAM_ROLES_DIVISION.md](TEAM_ROLES_DIVISION.md)** — Complete 4-member role ownership matrix with individual technical deliverables and USPs.
 
 ---
 
-## ⚡ Quick Feature Highlights
+## 🌟 4 Team Members & Individual USPs (Unique Selling Propositions)
 
-- 🌐 **Multilingual Conversational AI**: Native support for Hindi, Hinglish, English, Marathi, and Tamil.
-- 🎙️ **Hands-Free Talk Mode**: Groq Whisper Large v3 speech recognition & Edge-TTS neural voice synthesis.
-- 🎯 **Scheme Eligibility Matcher**: Matches user profile (age, state, income, caste category, marks) with 100% eligible government schemes.
-- 🔗 **Hyperlinked Official Portals**: Scheme matches feature direct hyperlinks to official application sites (`scholarships.gov.in`, `scholarship.up.gov.in`, `pmkisan.gov.in`, `myscheme.gov.in`).
-- 🚀 **Step-by-Step Registration Assistance**: Interactive 5-step registration breakdown with required document checklists.
-- 🔐 **User Auth & Chat History**: SQLite database backed account creation and cross-device chat sync.
+Each team member spearheads a distinct technological pillar that powers AmritChidiya:
+
+| Team Member | Engineering Role & Focus | Member USP (Unique Selling Proposition) |
+|---|---|---|
+| **Member 1** | **Frontend UI/UX & Citizen Access Lead** | **Phygital Last-Mile Bridge & Citizen CSC Dossier Generator**<br>Bridges the digital divide by generating physical, printable **CSC Scheme Dossiers** (`AC-CSC-XXXXXX`) with NPCI/DBT bank checklists & VLE operator sign-off boxes for village Jan Seva Kendras, coupled with a responsive Next.js 16 glassmorphism UI & live audio Talk Mode. |
+| **Member 2** | **Backend API & Speech Processing Lead** | **Low-Latency Vernacular Audio Pipeline with Indian Accent DSP**<br>Engineered an end-to-end voice pipeline using Groq Whisper Large v3 with phonetic domain prompting for Indian vernacular speech, background silence/hallucination suppression, and high-fidelity Microsoft Edge-TTS neural streaming in 5 Indian languages. |
+| **Member 3** | **AI Agent, Scheme Logic & Cyber Safety Lead** | **Anti-Hallucination Welfare Match Engine & Domain Cyber Shield**<br>Built the LangGraph dual-phase state machine ensuring 0% hallucinated welfare schemes, combined with the **Official Domain Shield & Scam Checker** that cryptographically verifies `.gov.in` / `.nic.in` URLs and shields citizens from WhatsApp fraud. |
+| **Member 4** | **Database, Auth Security & DevOps Lead** | **Zero-Trust Hybrid Cloud Persistence with Bcrypt Salted Auth**<br>Architected an enterprise-grade dual database layer (Supabase Cloud PostgreSQL + auto SQLite failover replica), hardened by salted **Bcrypt (12 rounds)**, signed **24-hour JWT tokens**, SlowAPI rate limiting, and production cross-origin deployment. |
+
+---
+
+## ⚡ Core Feature Highlights
+
+- 🌐 **Multilingual Conversational AI**: Native conversational support across **5 languages** (Hindi, Hinglish, English, Marathi, Tamil).
+- 🎙️ **Hands-Free Talk Mode**: Full-duplex conversational voice mode powered by Groq Whisper Large v3 and Edge-TTS neural voices.
+- 🧮 **Yojana Eligibility Calculator**: Interactive multi-criteria matrix dynamically evaluating State, Category, Income, and Profession to estimate annual financial benefits.
+- 🛡️ **Cyber Shield & Fake Scheme Checker**: Instant link verification tool protecting citizens from fraudulent WhatsApp schemes by verifying `.gov.in` and `.nic.in` domains.
+- 📄 **Printable CSC Dossier**: One-click printable PDF/dossier for village Common Service Centers (Jan Seva Kendra) with mandatory document checklists (Aadhaar, DBT/NPCI bank passbook).
+- 🔗 **Direct Official Portal Links**: Verified links to official central and state portals (`scholarships.gov.in`, `scholarship.up.gov.in`, `pmkisan.gov.in`, `myscheme.gov.in`).
+- 🔐 **Hardened Security & Privacy**: Bcrypt-salted password hashing, HS256 JWT authorization, SlowAPI rate-limiting, and security headers.
 
 ---
 
 ## 🛠️ Technology Stack
 
 - **Frontend**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, Lucide Icons, ReactMarkdown
-- **Backend**: FastAPI (Python), LangGraph, LangChain, Groq LLM (Qwen 3.8 27B / GPT-OSS)
-- **Speech & Audio**: Groq Whisper Large v3 (STT), Edge-TTS (Neural Voice Synthesis)
-- **Database**: SQLite3 (SHA-256 Auth & JSON Chat Turns Storage)
+- **Backend**: FastAPI (Python 3.14), LangGraph, LangChain, Groq LLM (`qwen/qwen3.8-27b`)
+- **Speech & Audio**: Groq Whisper Large v3 (STT), Microsoft Edge-TTS (Neural Voice Synthesis)
+- **Database & Auth**: Supabase Cloud (PostgreSQL) + Local SQLite3 Fallback, Bcrypt, Python-JOSE (JWT)
+- **Security & Infrastructure**: SlowAPI (Rate Limiting), Starlette Security Headers, CORS Origin Regex
 
 ---
 
 ## 🚀 Quick Start Guide
 
-### Backend Server
+### 1. Backend Server
 ```bash
 cd backend
 python -m venv .venv
@@ -45,11 +59,12 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python main.py
 ```
+*Backend runs on `http://127.0.0.1:8000`.*
 
-### Frontend Application
+### 2. Frontend Application
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+*Frontend runs on `http://localhost:3000`.*
