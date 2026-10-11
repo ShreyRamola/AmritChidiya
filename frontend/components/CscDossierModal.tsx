@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { X, Printer, ShieldCheck, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
+import { X, Printer, ShieldCheck, CheckCircle2, AlertCircle, FileText, MapPin, ExternalLink } from 'lucide-react';
 
 interface SchemeItem {
   name: string;
@@ -24,6 +24,11 @@ const DOSSIER_I18N: Record<string, Record<string, string>> = {
     modalBadge: "CSC Dossier",
     modalSubtitle: "Print or take this dossier directly to your local CSC / Cyber Cafe",
     printBtn: "Print / Save PDF",
+    locateBtn: "Locate Nearest CSC",
+    locateMapsBtn: "Google Maps (Near Me)",
+    locateGovtBtn: "Official CSC Portal",
+    locateTitle: "Find Nearest Jan Seva Kendra / CSC Center:",
+    locateSubtitle: "Official MeitY CSC Network • 5,00,000+ Authorized Kiosks across India",
     bannerTitle: "AMRITCHIDIYA SCHEME ELIGIBILITY DOSSIER",
     bannerSubtitle: "Digital India • Citizen Service Center Application Assistance Passbook",
     dossierIdLabel: "Dossier ID:",
@@ -56,6 +61,11 @@ const DOSSIER_I18N: Record<string, Record<string, string>> = {
     modalBadge: "CSC पर्ची",
     modalSubtitle: "इस पर्ची को सीधे अपने नजदीकी जन सेवा केंद्र या साइबर कैफे ले जाएं",
     printBtn: "प्रिंट / पीडीएफ सेव करें",
+    locateBtn: "नजदीकी CSC खोजें",
+    locateMapsBtn: "गूगल मैप्स (पास के केंद्र)",
+    locateGovtBtn: "आधिकारिक CSC पोर्टल",
+    locateTitle: "अपने नजदीकी जन सेवा केंद्र (CSC) का पता लगाएं:",
+    locateSubtitle: "इलेक्ट्रॉनिक्स एवं आईटी मंत्रालय • 5,00,000+ अधिकृत जन सेवा केंद्र",
     bannerTitle: "अमृतचिड़िया योजना पात्रता एवं आवेदन पर्ची",
     bannerSubtitle: "डिजिटल भारत • जन सेवा केंद्र / नागरिक सुविधा केंद्र सहायता पर्ची",
     dossierIdLabel: "पर्ची संख्या:",
@@ -88,6 +98,11 @@ const DOSSIER_I18N: Record<string, Record<string, string>> = {
     modalBadge: "CSC Parchi",
     modalSubtitle: "Is parchi ko print karein ya apne nazdeeki Jan Seva Kendra / Cyber Cafe le jayein",
     printBtn: "Print / Save PDF",
+    locateBtn: "Nazdeeki CSC Khojein",
+    locateMapsBtn: "Google Maps (Near Me)",
+    locateGovtBtn: "Sarkari CSC Portal",
+    locateTitle: "Nazdeeki Jan Seva Kendra / CSC Center Khojein:",
+    locateSubtitle: "Official MeitY CSC Network • 5,00,000+ Authorized Kiosks across India",
     bannerTitle: "AMRITCHIDIYA SCHEME ELIGIBILITY DOSSIER",
     bannerSubtitle: "Digital India • Jan Seva Kendra / CSC Sahayata Parchi",
     dossierIdLabel: "Dossier ID:",
@@ -120,6 +135,11 @@ const DOSSIER_I18N: Record<string, Record<string, string>> = {
     modalBadge: "CSC पावती",
     modalSubtitle: "ही पावती थेट तुमच्या जवळच्या जन सेवा केंद्रात किंवा सायबर कॅफेत घेऊन जा",
     printBtn: "प्रिंट / पीडीएफ सेव्ह करा",
+    locateBtn: "जवळचे CSC केंद्र शोधा",
+    locateMapsBtn: "गुगल मॅप्स (जवळचे केंद्र)",
+    locateGovtBtn: "शासकीय CSC पोर्टल",
+    locateTitle: "जवळचे जन सेवा केंद्र (CSC) शोधा:",
+    locateSubtitle: "इलेक्ट्रॉनिक्स व माहिती तंत्रज्ञान मंत्रालय • ५ लाखांहून अधिक अधिकृत केंद्रे",
     bannerTitle: "अमृतचिमणी योजना पात्रता व अर्ज पावती",
     bannerSubtitle: "डिजिटल भारत • जन सेवा केंद्र / नागरिक सुविधा केंद्र मदत पावती",
     dossierIdLabel: "पावती क्रमांक:",
@@ -152,6 +172,11 @@ const DOSSIER_I18N: Record<string, Record<string, string>> = {
     modalBadge: "CSC ஆவணம்",
     modalSubtitle: "இந்த ஆவணத்தை உங்கள் உள்ளூர் CSC மையத்திற்கு கொண்டு செல்லவும்",
     printBtn: "அச்சிடுக / PDF சேமிக்கவும்",
+    locateBtn: "அருகிலுள்ள CSC கண்டறியவும்",
+    locateMapsBtn: "Google வரைபடம் (அருகில்)",
+    locateGovtBtn: "அரசு CSC போர்டல்",
+    locateTitle: "அருகிலுள்ள பொது சேவை மையம் (CSC) கண்டறியவும்:",
+    locateSubtitle: "மின்னணு மற்றும் தகவல் தொழில்நுட்ப அமைச்சகம் • 5,00,000+ மையங்கள்",
     bannerTitle: "அமிர்தசிடியா நலத்திட்ட தகுதி ஆவணம்",
     bannerSubtitle: "டிஜிட்டல் இந்தியா • பொது சேவை மையம் உதவி ஆவணம்",
     dossierIdLabel: "ஆவண எண்:",
@@ -199,6 +224,23 @@ export default function CscDossierModal({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleFindOnMaps = () => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          window.open(`https://www.google.com/maps/search/Common+Service+Center+CSC+Jan+Seva+Kendra/@${latitude},${longitude},14z`, '_blank', 'noopener,noreferrer');
+        },
+        () => {
+          window.open(`https://www.google.com/maps/search/Common+Service+Center+CSC+Jan+Seva+Kendra+near+me`, '_blank', 'noopener,noreferrer');
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      window.open(`https://www.google.com/maps/search/Common+Service+Center+CSC+Jan+Seva+Kendra+near+me`, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const todayStr = new Date().toLocaleDateString(
@@ -268,6 +310,14 @@ export default function CscDossierModal({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleFindOnMaps}
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-amber-500/30 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              title="Find Nearest CSC Center on Map"
+            >
+              <MapPin size={14} />
+              <span className="hidden sm:inline">{i18n.locateBtn}</span>
+            </button>
+            <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold px-3 py-1.5 rounded-xl text-xs shadow-md transition-all cursor-pointer"
             >
@@ -289,6 +339,41 @@ export default function CscDossierModal({
           ref={printRef}
           className="flex-1 overflow-y-auto space-y-5 bg-zinc-950 border border-zinc-800/80 rounded-2xl p-5 sm:p-6 text-zinc-200 text-xs custom-scrollbar"
         >
+          {/* Nearest CSC Locator Action Card (Online View Only) */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/30 rounded-xl p-3.5 no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                <MapPin size={16} />
+              </div>
+              <div>
+                <h5 className="text-xs font-bold text-amber-300">
+                  {i18n.locateTitle}
+                </h5>
+                <p className="text-[10px] text-zinc-400">
+                  {i18n.locateSubtitle}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleFindOnMaps}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer"
+              >
+                <MapPin size={12} />
+                <span>{i18n.locateMapsBtn}</span>
+              </button>
+              <a
+                href="https://locator.csccloud.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+              >
+                <ExternalLink size={12} />
+                <span>{i18n.locateGovtBtn}</span>
+              </a>
+            </div>
+          </div>
+
           {/* Header Banner */}
           <div className="border-b-2 border-amber-500/60 pb-4 text-center relative">
             <div className="flex items-center justify-center gap-2 mb-1">

@@ -217,6 +217,9 @@ Yeh do questions har examiner poochta hai:
 #### Q16: CSC Dossier receipt mein kya kya details hoti hain?
 **Answer:** Unique Docket ID (`AC-CSC-XXXXXX`), Citizen Profile (State, Income, Category), Eligible Scheme Names with annual financial benefits, Mandatory Document Checklist (Aadhaar copy, Income certificate, NPCI-linked Bank passbook), aur CSC VLE operator ke sign & stamp ke verification boxes.
 
+#### Q16.1: Citizen ko nazdeeki CSC / Jan Seva Kendra ka pata kaise chalega?
+**Answer:** `CscDossierModal.tsx` mein humne **"📍 Locate Nearest CSC"** ka direct function banaya hai. Yeh browser ke live GPS Geolocation (`navigator.geolocation`) se citizen ke paas ke sabhi Jan Seva Kendras ko Google Maps par ek click mein open karta hai (`Common Service Center near me`), sath hi Bharat Sarkar ke official portal **`locator.csccloud.in`** (5,00,000+ kendra directory) ka direct link deta hai.
+
 #### Q17: Print styling ke liye Next.js mein kya kiya?
 **Answer:** `CscDossierModal.tsx` mein CSS `@media print` rules likhe hain jo print dialog khulte hi dark-mode website ke sidebars, chat input aur buttons ko hide kar dete hain aur pure dossier ko clean black-and-white A4 paper format mein convert kar dete hain.
 
