@@ -152,6 +152,7 @@ def extract_schemes_from_text(text: str) -> list:
 def search_live_scheme_updates(query: str, max_results: int = 3) -> str:
     """Fetch live, up-to-date scheme announcements from official government portals."""
     try:
+        # pyrefly: ignore [missing-import]
         from duckduckgo_search import DDGS
         search_query = f"{query} site:gov.in OR site:nic.in OR site:myscheme.gov.in"
         with DDGS() as ddgs:
@@ -229,7 +230,7 @@ def llm_node(state: AgentState) -> dict:
                 
     except Exception as e:
         print(f"LLM generation failed, attempting candidate models: {repr(e)}")
-        candidate_models = ["openai/gpt-oss-120b", "groq/compound-mini"]
+        candidate_models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
         for cand in candidate_models:
             try:
                 cand_llm = get_llm(model_name=cand)
