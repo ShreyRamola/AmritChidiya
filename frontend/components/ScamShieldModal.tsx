@@ -7,6 +7,7 @@ interface ScamShieldModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedLanguage?: string | null;
+  theme?: 'light' | 'dark';
 }
 
 const SHIELD_I18N: Record<string, Record<string, string>> = {
@@ -92,7 +93,8 @@ const SHIELD_I18N: Record<string, Record<string, string>> = {
   }
 };
 
-export default function ScamShieldModal({ isOpen, onClose, selectedLanguage }: ScamShieldModalProps) {
+export default function ScamShieldModal({ isOpen, onClose, selectedLanguage, theme = 'light' }: ScamShieldModalProps) {
+  const isLight = theme === 'light';
   const [testInput, setTestInput] = useState('');
   const [analysisResult, setAnalysisResult] = useState<{
     status: 'safe' | 'scam' | 'idle';
@@ -148,37 +150,47 @@ export default function ScamShieldModal({ isOpen, onClose, selectedLanguage }: S
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-xl w-full p-6 sm:p-7 relative shadow-[0_0_60px_rgba(239,68,68,0.15)] my-auto max-h-[92vh] flex flex-col">
+    <div className={`fixed inset-0 z-50 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200 ${
+      isLight ? 'bg-slate-900/60' : 'bg-zinc-950/90'
+    }`}>
+      <div className={`border rounded-3xl max-w-xl w-full p-6 sm:p-7 relative my-auto max-h-[92vh] flex flex-col shadow-2xl ${
+        isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-zinc-800 text-zinc-100 shadow-[0_0_60px_rgba(239,68,68,0.15)]'
+      }`}>
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+        <div className={`flex items-center justify-between pb-4 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center font-bold">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+              isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/15 text-emerald-400'
+            }`}>
               <ShieldCheck size={20} />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-zinc-100 flex items-center gap-2">
+              <h3 className={`text-sm sm:text-base font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-zinc-100'}`}>
                 <span>{i18n.modalTitle}</span>
-                <span className="text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
+                <span className={`text-[10px] border px-2 py-0.5 rounded-full font-mono ${
+                  isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                }`}>
                   {i18n.modalBadge}
                 </span>
               </h3>
-              <p className="text-[11px] text-zinc-400">
+              <p className={`text-[11px] ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
                 {i18n.modalSubtitle}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
+            className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
+              isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100'
+            }`}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Verification Form */}
-        <form onSubmit={handleVerify} className="py-4 border-b border-zinc-800 space-y-2.5">
-          <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+        <form onSubmit={handleVerify} className={`py-4 border-b space-y-2.5 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+          <label className={`block text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-700' : 'text-zinc-400'}`}>
             {i18n.inputLabel}
           </label>
           <div className="flex gap-2">
@@ -187,7 +199,9 @@ export default function ScamShieldModal({ isOpen, onClose, selectedLanguage }: S
               placeholder={i18n.inputPlaceholder}
               value={testInput}
               onChange={(e) => setTestInput(e.target.value)}
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none focus:border-emerald-500/50"
+              className={`flex-1 rounded-xl px-3.5 py-2.5 text-xs outline-none border focus:border-emerald-500 ${
+                isLight ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400' : 'bg-zinc-950 border-zinc-800 text-zinc-200 outline-none focus:border-emerald-500/50'
+              }`}
             />
             <button
               type="submit"
@@ -200,25 +214,29 @@ export default function ScamShieldModal({ isOpen, onClose, selectedLanguage }: S
 
           {/* Result Banner */}
           {analysisResult.status === 'safe' && (
-            <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-start gap-2.5 text-emerald-300 animate-in fade-in">
-              <CheckCircle2 size={18} className="shrink-0 mt-0.5 text-emerald-400" />
+            <div className={`p-3.5 rounded-2xl flex items-start gap-2.5 border animate-in fade-in ${
+              isLight ? 'bg-emerald-50 border-emerald-300 text-emerald-950' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+            }`}>
+              <CheckCircle2 size={18} className="shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
               <div>
                 <p className="font-bold text-xs">
                   {langKey === 'English' ? 'VERIFIED OFFICIAL GOVERNMENT DOMAIN' : 'सत्यापित आधिकारिक सरकारी डोमेन'}
                 </p>
-                <p className="text-[11px] text-emerald-400/80 mt-0.5">{analysisResult.reason}</p>
+                <p className={`text-[11px] mt-0.5 ${isLight ? 'text-emerald-800' : 'text-emerald-400/80'}`}>{analysisResult.reason}</p>
               </div>
             </div>
           )}
 
           {analysisResult.status === 'scam' && (
-            <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-2.5 text-red-300 animate-in fade-in">
-              <AlertTriangle size={18} className="shrink-0 mt-0.5 text-red-400" />
+            <div className={`p-3.5 rounded-2xl flex items-start gap-2.5 border animate-in fade-in ${
+              isLight ? 'bg-red-50 border-red-300 text-red-950' : 'bg-red-500/10 border-red-500/30 text-red-300'
+            }`}>
+              <AlertTriangle size={18} className="shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
               <div>
                 <p className="font-bold text-xs">
                   {langKey === 'English' ? '🚨 HIGH RISK / SUSPICIOUS SCHEME DETECTED' : '🚨 उच्च जोखिम / संदिग्ध योजना पहचानी गई'}
                 </p>
-                <p className="text-[11px] text-red-300/80 mt-0.5">{analysisResult.reason}</p>
+                <p className={`text-[11px] mt-0.5 ${isLight ? 'text-red-800' : 'text-red-300/80'}`}>{analysisResult.reason}</p>
               </div>
             </div>
           )}
@@ -226,39 +244,51 @@ export default function ScamShieldModal({ isOpen, onClose, selectedLanguage }: S
 
         {/* 3 Golden Rules for Citizens */}
         <div className="flex-1 overflow-y-auto py-3 space-y-3 custom-scrollbar text-xs">
-          <h4 className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+          <h4 className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? 'text-amber-800' : 'text-amber-400'}`}>
             <Lock size={13} /> {i18n.rulesTitle}
           </h4>
 
           <div className="grid gap-2">
-            <div className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-800/80 flex items-start gap-2.5">
-              <span className="w-5 h-5 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
+            <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950/60 border-zinc-800/80'
+            }`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
+                isLight ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-amber-500/10 text-amber-400'
+              }`}>1</span>
               <div>
-                <strong className="text-zinc-200 block text-[11px]">{i18n.rule1Title}</strong>
-                <span className="text-[10px] text-zinc-400">{i18n.rule1Desc}</span>
+                <strong className={`block text-[11px] ${isLight ? 'text-slate-900' : 'text-zinc-200'}`}>{i18n.rule1Title}</strong>
+                <span className={`text-[10px] ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>{i18n.rule1Desc}</span>
               </div>
             </div>
 
-            <div className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-800/80 flex items-start gap-2.5">
-              <span className="w-5 h-5 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
+            <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950/60 border-zinc-800/80'
+            }`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
+                isLight ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-amber-500/10 text-amber-400'
+              }`}>2</span>
               <div>
-                <strong className="text-zinc-200 block text-[11px]">{i18n.rule2Title}</strong>
-                <span className="text-[10px] text-zinc-400">{i18n.rule2Desc}</span>
+                <strong className={`block text-[11px] ${isLight ? 'text-slate-900' : 'text-zinc-200'}`}>{i18n.rule2Title}</strong>
+                <span className={`text-[10px] ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>{i18n.rule2Desc}</span>
               </div>
             </div>
 
-            <div className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-800/80 flex items-start gap-2.5">
-              <span className="w-5 h-5 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
+            <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950/60 border-zinc-800/80'
+            }`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
+                isLight ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-amber-500/10 text-amber-400'
+              }`}>3</span>
               <div>
-                <strong className="text-zinc-200 block text-[11px]">{i18n.rule3Title}</strong>
-                <span className="text-[10px] text-zinc-400">{i18n.rule3Desc}</span>
+                <strong className={`block text-[11px] ${isLight ? 'text-slate-900' : 'text-zinc-200'}`}>{i18n.rule3Title}</strong>
+                <span className={`text-[10px] ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>{i18n.rule3Desc}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-zinc-800 text-center text-[10px] text-zinc-500">
+        <div className={`pt-3 border-t text-center text-[10px] ${isLight ? 'border-slate-200 text-slate-500' : 'border-zinc-800 text-zinc-500'}`}>
           {i18n.footer}
         </div>
       </div>

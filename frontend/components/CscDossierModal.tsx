@@ -16,6 +16,7 @@ interface CscDossierModalProps {
   userEmail?: string;
   selectedLanguage?: string | null;
   schemes: SchemeItem[];
+  theme?: 'light' | 'dark';
 }
 
 const DOSSIER_I18N: Record<string, Record<string, string>> = {
@@ -212,7 +213,8 @@ export default function CscDossierModal({
   userName,
   userEmail,
   selectedLanguage,
-  schemes
+  schemes,
+  theme = 'light'
 }: CscDossierModalProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [dossierId] = useState(() => 'AC-CSC-' + Math.floor(100000 + Math.random() * 900000));
@@ -262,7 +264,9 @@ export default function CscDossierModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+    <div className={`fixed inset-0 z-50 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200 ${
+      theme === 'light' ? 'bg-slate-900/40' : 'bg-zinc-950/90'
+    }`}>
       <style jsx global>{`
         @media print {
           body * {
@@ -288,21 +292,37 @@ export default function CscDossierModal({
         }
       `}</style>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 relative shadow-[0_0_60px_rgba(245,158,11,0.15)] my-auto max-h-[92vh] flex flex-col">
+      <div className={`rounded-3xl max-w-2xl w-full p-6 sm:p-8 relative my-auto max-h-[92vh] flex flex-col border transition-all duration-300 ${
+        theme === 'light'
+          ? 'bg-white border-slate-200 text-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.15)]'
+          : 'bg-zinc-900 border-zinc-800 text-zinc-100 shadow-[0_0_60px_rgba(245,158,11,0.15)]'
+      }`}>
         {/* Top Control Bar (Hidden during print) */}
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-800 no-print">
+        <div className={`flex items-center justify-between pb-4 mb-4 border-b no-print ${
+          theme === 'light' ? 'border-slate-200' : 'border-zinc-800'
+        }`}>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+              theme === 'light' ? 'bg-amber-500/15 text-amber-600' : 'bg-amber-500/20 text-amber-400'
+            }`}>
               <FileText size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-1.5">
+              <h3 className={`text-sm font-bold flex items-center gap-1.5 ${
+                theme === 'light' ? 'text-slate-900' : 'text-zinc-100'
+              }`}>
                 <span>{i18n.modalTitle}</span>
-                <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
+                  theme === 'light'
+                    ? 'bg-amber-500/15 text-amber-800 border-amber-500/40'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                }`}>
                   {i18n.modalBadge}
                 </span>
               </h3>
-              <p className="text-[11px] text-zinc-400">
+              <p className={`text-[11px] ${
+                theme === 'light' ? 'text-slate-500' : 'text-zinc-400'
+              }`}>
                 {i18n.modalSubtitle}
               </p>
             </div>
@@ -311,7 +331,11 @@ export default function CscDossierModal({
           <div className="flex items-center gap-2">
             <button
               onClick={handleFindOnMaps}
-              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-amber-500/30 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                theme === 'light'
+                  ? 'bg-slate-100 hover:bg-slate-200 text-amber-800 border-amber-500/40'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-amber-400 border-amber-500/30'
+              }`}
               title="Find Nearest CSC Center on Map"
             >
               <MapPin size={14} />
@@ -326,7 +350,11 @@ export default function CscDossierModal({
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
+              className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
+                theme === 'light'
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100'
+              }`}
             >
               <X size={18} />
             </button>
@@ -337,19 +365,33 @@ export default function CscDossierModal({
         <div
           id="csc-dossier-printable"
           ref={printRef}
-          className="flex-1 overflow-y-auto space-y-5 bg-zinc-950 border border-zinc-800/80 rounded-2xl p-5 sm:p-6 text-zinc-200 text-xs custom-scrollbar"
+          className={`flex-1 overflow-y-auto space-y-5 rounded-2xl p-5 sm:p-6 text-xs custom-scrollbar border ${
+            theme === 'light'
+              ? 'bg-slate-50/70 border-slate-200 text-slate-800'
+              : 'bg-zinc-950 border-zinc-800/80 text-zinc-200'
+          }`}
         >
           {/* Nearest CSC Locator Action Card (Online View Only) */}
-          <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/30 rounded-xl p-3.5 no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className={`rounded-xl p-3.5 no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm border ${
+            theme === 'light'
+              ? 'bg-gradient-to-r from-amber-500/15 via-amber-50 to-amber-50/50 border-amber-500/30 text-slate-800'
+              : 'bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border-amber-500/30 text-zinc-200'
+          }`}>
             <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                theme === 'light' ? 'bg-amber-500/20 text-amber-700' : 'bg-amber-500/20 text-amber-400'
+              }`}>
                 <MapPin size={16} />
               </div>
               <div>
-                <h5 className="text-xs font-bold text-amber-300">
+                <h5 className={`text-xs font-bold ${
+                  theme === 'light' ? 'text-amber-900' : 'text-amber-300'
+                }`}>
                   {i18n.locateTitle}
                 </h5>
-                <p className="text-[10px] text-zinc-400">
+                <p className={`text-[10px] ${
+                  theme === 'light' ? 'text-slate-600' : 'text-zinc-400'
+                }`}>
                   {i18n.locateSubtitle}
                 </p>
               </div>
@@ -357,7 +399,11 @@ export default function CscDossierModal({
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={handleFindOnMaps}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer"
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer border ${
+                  theme === 'light'
+                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 border-amber-500/40'
+                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                }`}
               >
                 <MapPin size={12} />
                 <span>{i18n.locateMapsBtn}</span>
@@ -366,7 +412,11 @@ export default function CscDossierModal({
                 href="https://locator.csccloud.in/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors border ${
+                  theme === 'light'
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
+                }`}
               >
                 <ExternalLink size={12} />
                 <span>{i18n.locateGovtBtn}</span>
@@ -378,59 +428,77 @@ export default function CscDossierModal({
           <div className="border-b-2 border-amber-500/60 pb-4 text-center relative">
             <div className="flex items-center justify-center gap-2 mb-1">
               <span className="text-xl">🐦</span>
-              <span className="font-bold text-base tracking-wider text-amber-400 uppercase">
+              <span className={`font-bold text-base tracking-wider uppercase ${
+                theme === 'light' ? 'text-amber-800' : 'text-amber-400'
+              }`}>
                 {i18n.bannerTitle}
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400 font-medium">
+            <p className={`text-[11px] font-medium ${
+              theme === 'light' ? 'text-slate-600' : 'text-zinc-400'
+            }`}>
               {i18n.bannerSubtitle}
             </p>
-            <div className="flex justify-between items-center text-[10px] text-zinc-500 mt-3 pt-2 border-t border-zinc-800/50 font-mono">
-              <span>{i18n.dossierIdLabel} <strong className="text-zinc-300">{dossierId}</strong></span>
-              <span>{i18n.generatedLabel} <strong className="text-zinc-300">{todayStr}</strong></span>
-              <span>{i18n.statusLabel} <strong className="text-emerald-400">{i18n.statusValue}</strong></span>
+            <div className={`flex justify-between items-center text-[10px] mt-3 pt-2 border-t font-mono ${
+              theme === 'light' ? 'border-slate-200 text-slate-500' : 'border-zinc-800/50 text-zinc-500'
+            }`}>
+              <span>{i18n.dossierIdLabel} <strong className={theme === 'light' ? 'text-slate-800' : 'text-zinc-300'}>{dossierId}</strong></span>
+              <span>{i18n.generatedLabel} <strong className={theme === 'light' ? 'text-slate-800' : 'text-zinc-300'}>{todayStr}</strong></span>
+              <span>{i18n.statusLabel} <strong className="text-emerald-500">{i18n.statusValue}</strong></span>
             </div>
           </div>
 
           {/* Beneficiary Details */}
-          <div className="bg-zinc-900/70 p-3.5 rounded-xl border border-zinc-800">
-            <h4 className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <div className={`p-3.5 rounded-xl border ${
+            theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-zinc-900/70 border-zinc-800'
+          }`}>
+            <h4 className={`text-[11px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
+              theme === 'light' ? 'text-amber-800' : 'text-amber-400'
+            }`}>
               <ShieldCheck size={14} /> {i18n.sec1Title}
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
               <div>
-                <span className="text-zinc-500 block text-[10px]">{i18n.nameLabel}</span>
-                <span className="font-semibold text-zinc-200">{userName || (langKey === 'English' ? 'Beneficiary' : 'आवेदक')}</span>
+                <span className={`block text-[10px] ${theme === 'light' ? 'text-slate-500' : 'text-zinc-500'}`}>{i18n.nameLabel}</span>
+                <span className={`font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-zinc-200'}`}>{userName || (langKey === 'English' ? 'Beneficiary' : 'आवेदक')}</span>
               </div>
               <div>
-                <span className="text-zinc-500 block text-[10px]">{i18n.emailLabel}</span>
-                <span className="font-semibold text-zinc-200 truncate block">{userEmail || 'registered@citizen'}</span>
+                <span className={`block text-[10px] ${theme === 'light' ? 'text-slate-500' : 'text-zinc-500'}`}>{i18n.emailLabel}</span>
+                <span className={`font-semibold truncate block ${theme === 'light' ? 'text-slate-900' : 'text-zinc-200'}`}>{userEmail || 'registered@citizen'}</span>
               </div>
               <div>
-                <span className="text-zinc-500 block text-[10px]">{i18n.langLabel}</span>
-                <span className="font-semibold text-zinc-200">{selectedLanguage || 'English'}</span>
+                <span className={`block text-[10px] ${theme === 'light' ? 'text-slate-500' : 'text-zinc-500'}`}>{i18n.langLabel}</span>
+                <span className={`font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-zinc-200'}`}>{selectedLanguage || 'English'}</span>
               </div>
             </div>
           </div>
 
           {/* Recommended Schemes */}
           <div>
-            <h4 className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-emerald-400" /> {i18n.sec2Title}
+            <h4 className={`text-[11px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
+              theme === 'light' ? 'text-amber-800' : 'text-amber-400'
+            }`}>
+              <CheckCircle2 size={14} className={theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'} /> {i18n.sec2Title}
             </h4>
             <div className="space-y-2">
               {displaySchemes.map((scheme, idx) => (
                 <div
                   key={idx}
-                  className="p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                  className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                    theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-zinc-900/50 border-zinc-800/80'
+                  }`}
                 >
                   <div>
-                    <p className="font-bold text-zinc-200 text-xs">{idx + 1}. {scheme.name}</p>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">
-                      {i18n.officialPortalLabel} <span className="font-mono text-amber-400">{scheme.apply_url || 'https://www.myscheme.gov.in'}</span>
+                    <p className={`font-bold text-xs ${theme === 'light' ? 'text-slate-900' : 'text-zinc-200'}`}>{idx + 1}. {scheme.name}</p>
+                    <p className={`text-[10px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      {i18n.officialPortalLabel} <span className={`font-mono ${theme === 'light' ? 'text-amber-700' : 'text-amber-400'}`}>{scheme.apply_url || 'https://www.myscheme.gov.in'}</span>
                     </p>
                   </div>
-                  <span className="self-start sm:self-auto text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  <span className={`self-start sm:self-auto text-[10px] font-bold px-2 py-0.5 rounded border ${
+                    theme === 'light'
+                      ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40'
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  }`}>
                     {scheme.eligibility_match}
                   </span>
                 </div>
@@ -439,39 +507,47 @@ export default function CscDossierModal({
           </div>
 
           {/* Mandatory CSC Document Checklist */}
-          <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800">
-            <h4 className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+          <div className={`p-4 rounded-xl border ${
+            theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-zinc-900/40 border-zinc-800'
+          }`}>
+            <h4 className={`text-[11px] font-bold uppercase tracking-wider mb-2.5 flex items-center gap-1.5 ${
+              theme === 'light' ? 'text-amber-800' : 'text-amber-400'
+            }`}>
               <FileText size={14} /> {i18n.sec3Title}
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-              <label className="flex items-center gap-2 text-zinc-300">
-                <input type="checkbox" defaultChecked className="rounded border-zinc-700 accent-amber-500" />
+              <label className={`flex items-center gap-2 ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
+                <input type="checkbox" defaultChecked className="rounded border-slate-300 accent-amber-500" />
                 <span>{i18n.docAadhaar}</span>
               </label>
-              <label className="flex items-center gap-2 text-zinc-300">
-                <input type="checkbox" defaultChecked className="rounded border-zinc-700 accent-amber-500" />
+              <label className={`flex items-center gap-2 ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
+                <input type="checkbox" defaultChecked className="rounded border-slate-300 accent-amber-500" />
                 <span>{i18n.docBank}</span>
               </label>
-              <label className="flex items-center gap-2 text-zinc-300">
-                <input type="checkbox" defaultChecked className="rounded border-zinc-700 accent-amber-500" />
+              <label className={`flex items-center gap-2 ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
+                <input type="checkbox" defaultChecked className="rounded border-slate-300 accent-amber-500" />
                 <span>{i18n.docIncome}</span>
               </label>
-              <label className="flex items-center gap-2 text-zinc-300">
-                <input type="checkbox" defaultChecked className="rounded border-zinc-700 accent-amber-500" />
+              <label className={`flex items-center gap-2 ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
+                <input type="checkbox" defaultChecked className="rounded border-slate-300 accent-amber-500" />
                 <span>{i18n.docCaste}</span>
               </label>
-              <label className="flex items-center gap-2 text-zinc-300">
-                <input type="checkbox" defaultChecked className="rounded border-zinc-700 accent-amber-500" />
+              <label className={`flex items-center gap-2 ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
+                <input type="checkbox" defaultChecked className="rounded border-slate-300 accent-amber-500" />
                 <span>{i18n.docMarksheet}</span>
               </label>
-              <label className="flex items-center gap-2 text-zinc-300">
-                <input type="checkbox" defaultChecked className="rounded border-zinc-700 accent-amber-500" />
+              <label className={`flex items-center gap-2 ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
+                <input type="checkbox" defaultChecked className="rounded border-slate-300 accent-amber-500" />
                 <span>{i18n.docPhotos}</span>
               </label>
             </div>
 
             {/* Critical NPCI Warning */}
-            <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-2 text-[10px] text-amber-300">
+            <div className={`mt-3 p-2 rounded-lg flex items-start gap-2 text-[10px] border ${
+              theme === 'light'
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-900'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+            }`}>
               <AlertCircle size={14} className="shrink-0 mt-0.5" />
               <span>
                 <strong>{i18n.npciTitle}</strong> {i18n.npciBody}
@@ -480,24 +556,32 @@ export default function CscDossierModal({
           </div>
 
           {/* CSC Operator Verification Slip */}
-          <div className="border-t-2 border-dashed border-zinc-800 pt-4">
-            <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
+          <div className={`border-t-2 border-dashed pt-4 ${
+            theme === 'light' ? 'border-slate-300' : 'border-zinc-800'
+          }`}>
+            <h4 className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${
+              theme === 'light' ? 'text-slate-700' : 'text-zinc-400'
+            }`}>
               {i18n.sec4Title}
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-3 text-[10px] text-zinc-500">
-              <div className="border-b border-zinc-800 pb-1">
+            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-4 pt-3 text-[10px] ${
+              theme === 'light' ? 'text-slate-500' : 'text-zinc-500'
+            }`}>
+              <div className={`border-b pb-1 ${theme === 'light' ? 'border-slate-300 text-slate-600' : 'border-zinc-800 text-zinc-500'}`}>
                 <span>{i18n.ackRef}</span>
               </div>
-              <div className="border-b border-zinc-800 pb-1">
+              <div className={`border-b pb-1 ${theme === 'light' ? 'border-slate-300 text-slate-600' : 'border-zinc-800 text-zinc-500'}`}>
                 <span>{i18n.ackVle}</span>
               </div>
-              <div className="border-b border-zinc-800 pb-1">
+              <div className={`border-b pb-1 ${theme === 'light' ? 'border-slate-300 text-slate-600' : 'border-zinc-800 text-zinc-500'}`}>
                 <span>{i18n.ackSign}</span>
               </div>
             </div>
           </div>
 
-          <div className="text-center text-[9px] text-zinc-600 pt-2 border-t border-zinc-900">
+          <div className={`text-center text-[9px] pt-2 border-t ${
+            theme === 'light' ? 'border-slate-200 text-slate-500' : 'border-zinc-900 text-zinc-600'
+          }`}>
             {i18n.footer}
           </div>
         </div>

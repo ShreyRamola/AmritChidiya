@@ -8,6 +8,7 @@ interface EligibilityCalculatorModalProps {
   onClose: () => void;
   onApplyToChat: (query: string) => void;
   selectedLanguage?: string | null;
+  theme?: 'light' | 'dark';
 }
 
 interface SchemeResult {
@@ -95,8 +96,10 @@ export default function EligibilityCalculatorModal({
   isOpen,
   onClose,
   onApplyToChat,
-  selectedLanguage
+  selectedLanguage,
+  theme = 'light'
 }: EligibilityCalculatorModalProps) {
+  const isLight = theme === 'light';
   const [state, setState] = useState('Uttar Pradesh');
   const [category, setCategory] = useState('OBC');
   const [income, setIncome] = useState('1.5 Lakh');
@@ -229,43 +232,53 @@ export default function EligibilityCalculatorModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-7 relative shadow-[0_0_60px_rgba(245,158,11,0.2)] my-auto max-h-[92vh] flex flex-col">
+    <div className={`fixed inset-0 z-50 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200 ${
+      isLight ? 'bg-slate-900/60' : 'bg-zinc-950/90'
+    }`}>
+      <div className={`border rounded-3xl max-w-2xl w-full p-6 sm:p-7 relative my-auto max-h-[92vh] flex flex-col shadow-2xl ${
+        isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-zinc-800 text-zinc-100 shadow-[0_0_60px_rgba(245,158,11,0.2)]'
+      }`}>
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+        <div className={`flex items-center justify-between pb-4 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-zinc-950 flex items-center justify-center font-bold">
               <Calculator size={18} />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-zinc-100 flex items-center gap-2">
+              <h3 className={`text-sm sm:text-base font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-zinc-100'}`}>
                 <span>{i18n.modalTitle}</span>
-                <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                  isLight ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                }`}>
                   {i18n.modalBadge}
                 </span>
               </h3>
-              <p className="text-[11px] text-zinc-400">
+              <p className={`text-[11px] ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
                 {i18n.modalSubtitle}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
+            className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
+              isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100'
+            }`}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Input Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-4 border-b border-zinc-800/80">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 py-4 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800/80'}`}>
           {/* State */}
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">{i18n.stateLabel}</label>
+            <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1 ${isLight ? 'text-slate-700' : 'text-zinc-400'}`}>{i18n.stateLabel}</label>
             <select
               value={state}
               onChange={(e) => setState(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 outline-none focus:border-amber-500/50"
+              className={`w-full rounded-xl px-3 py-2 text-xs outline-none border focus:border-amber-500 ${
+                isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-zinc-950 border-zinc-800 text-zinc-200'
+              }`}
             >
               <option value="Uttar Pradesh">Uttar Pradesh</option>
               <option value="Uttarakhand">Uttarakhand</option>
@@ -281,11 +294,13 @@ export default function EligibilityCalculatorModal({
 
           {/* Social Category */}
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">{i18n.categoryLabel}</label>
+            <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1 ${isLight ? 'text-slate-700' : 'text-zinc-400'}`}>{i18n.categoryLabel}</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 outline-none focus:border-amber-500/50"
+              className={`w-full rounded-xl px-3 py-2 text-xs outline-none border focus:border-amber-500 ${
+                isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-zinc-950 border-zinc-800 text-zinc-200'
+              }`}
             >
               <option value="General">General</option>
               <option value="OBC">OBC (Other Backward Class)</option>
@@ -298,11 +313,13 @@ export default function EligibilityCalculatorModal({
 
           {/* Annual Family Income */}
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">{i18n.incomeLabel}</label>
+            <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1 ${isLight ? 'text-slate-700' : 'text-zinc-400'}`}>{i18n.incomeLabel}</label>
             <select
               value={income}
               onChange={(e) => setIncome(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 outline-none focus:border-amber-500/50"
+              className={`w-full rounded-xl px-3 py-2 text-xs outline-none border focus:border-amber-500 ${
+                isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-zinc-950 border-zinc-800 text-zinc-200'
+              }`}
             >
               <option value="Under 1 Lakh">&lt; ₹1 Lakh / yr</option>
               <option value="1.5 Lakh">₹1 - 2.5 Lakhs / yr</option>
@@ -313,11 +330,13 @@ export default function EligibilityCalculatorModal({
 
           {/* Role / Profile */}
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">{i18n.profileLabel}</label>
+            <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1 ${isLight ? 'text-slate-700' : 'text-zinc-400'}`}>{i18n.profileLabel}</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 outline-none focus:border-amber-500/50"
+              className={`w-full rounded-xl px-3 py-2 text-xs outline-none border focus:border-amber-500 ${
+                isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-zinc-950 border-zinc-800 text-zinc-200'
+              }`}
             >
               <option value="College Student">College / Higher Education / Degree</option>
               <option value="Class 11-12th">School (Class 11th - 12th)</option>
@@ -331,10 +350,10 @@ export default function EligibilityCalculatorModal({
         {/* Calculation Result Feed */}
         <div className="flex-1 overflow-y-auto py-3 space-y-2.5 custom-scrollbar">
           <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? 'text-amber-800' : 'text-amber-400'}`}>
               <Sparkles size={13} /> {i18n.matchedTitle} ({calculatedSchemes.length})
             </span>
-            <span className="text-[10px] text-zinc-500">
+            <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
               {i18n.liveFilter}
             </span>
           </div>
@@ -342,19 +361,25 @@ export default function EligibilityCalculatorModal({
           {calculatedSchemes.map((scheme, idx) => (
             <div
               key={idx}
-              className="p-3 bg-zinc-950/70 border border-zinc-800 rounded-2xl flex items-center justify-between gap-3 hover:border-amber-500/40 transition-colors"
+              className={`p-3 rounded-2xl flex items-center justify-between gap-3 border transition-colors ${
+                isLight
+                  ? 'bg-slate-50/80 border-slate-200 hover:border-amber-400 text-slate-900'
+                  : 'bg-zinc-950/70 border-zinc-800 hover:border-amber-500/40 text-zinc-200'
+              }`}
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-zinc-200 truncate">{scheme.name}</h4>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
+                  <h4 className={`text-xs font-bold truncate ${isLight ? 'text-slate-900' : 'text-zinc-200'}`}>{scheme.name}</h4>
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                    isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  }`}>
                     {scheme.matchScore}% Match
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-zinc-400 mt-1">
+                <div className={`flex items-center gap-3 text-[10px] mt-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
                   <span>{scheme.category}</span>
                   <span>•</span>
-                  <span className="text-amber-400 font-semibold flex items-center gap-0.5">
+                  <span className={`font-semibold flex items-center gap-0.5 ${isLight ? 'text-amber-800' : 'text-amber-400'}`}>
                     <IndianRupee size={10} /> {scheme.annualBenefit}
                   </span>
                 </div>
@@ -364,7 +389,11 @@ export default function EligibilityCalculatorModal({
                 href={scheme.portalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 text-[10px] font-bold px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-amber-300 rounded-xl border border-zinc-700 transition-all"
+                className={`shrink-0 text-[10px] font-bold px-2.5 py-1.5 rounded-xl border transition-all ${
+                  isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-800 hover:text-amber-800 border-slate-300 shadow-xs'
+                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-amber-300 border-zinc-700'
+                }`}
               >
                 {i18n.applySite}
               </a>
@@ -373,9 +402,9 @@ export default function EligibilityCalculatorModal({
         </div>
 
         {/* Footer Action */}
-        <div className="pt-3 border-t border-zinc-800 flex items-center justify-between gap-3">
-          <div className="text-[10px] text-zinc-500 flex items-center gap-1">
-            <ShieldCheck size={13} className="text-amber-500" />
+        <div className={`pt-3 border-t flex items-center justify-between gap-3 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+          <div className={`text-[10px] flex items-center gap-1 ${isLight ? 'text-slate-600' : 'text-zinc-500'}`}>
+            <ShieldCheck size={13} className={isLight ? 'text-amber-700' : 'text-amber-500'} />
             <span>{i18n.criteriaNotice}</span>
           </div>
           <button

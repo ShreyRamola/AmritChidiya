@@ -34,9 +34,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased overflow-hidden bg-zinc-950 text-zinc-100 dark`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased overflow-hidden`}
+      suppressHydrationWarning
     >
-      <body className="h-full max-h-screen overflow-hidden flex flex-col touch-none select-none bg-zinc-950 text-zinc-100">{children}</body>
+      <body className="h-full max-h-screen overflow-hidden flex flex-col touch-none select-none bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 transition-colors duration-300">
+        {children}
+      </body>
     </html>
   );
 }

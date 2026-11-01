@@ -24,7 +24,9 @@ import {
   ExternalLink,
   Calculator,
   FileText,
-  Printer
+  Printer,
+  Sun,
+  Moon
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -381,6 +383,95 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
 };
 
 export default function Home() {
+  // Theme state: defaults to 'light' (Day mode with white background and sun emote)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('amrit_chidiya_theme');
+    if (savedTheme === 'dark' || savedTheme === 'light') {
+      setTheme(savedTheme);
+    } else {
+      setTheme('light'); // default originally in white background (sun emote one)
+    }
+  }, []);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      localStorage.setItem('amrit_chidiya_theme', next);
+      return next;
+    });
+  };
+
+  const renderIosThemeToggle = (compact = false) => (
+    <div className="flex items-center gap-1.5 select-none">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={theme === 'dark'}
+        aria-label={theme === 'light' ? 'Switch to Night Mode' : 'Switch to Day Mode'}
+        onClick={toggleTheme}
+        className={`group relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors duration-300 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+          theme === 'dark'
+            ? 'bg-zinc-800 border border-zinc-700 shadow-inner'
+            : 'bg-amber-100 border border-amber-300 shadow-inner'
+        }`}
+        title={theme === 'light' ? 'Current: Day Mode (Light) • Click for Night Mode' : 'Current: Night Mode (Dark) • Click for Day Mode'}
+      >
+        {/* Sun Emote on Left of track */}
+        <span
+          className={`absolute left-1.5 text-[11px] leading-none pointer-events-none transition-opacity duration-200 ${
+            theme === 'light' ? 'opacity-25' : 'opacity-85'
+          }`}
+          role="img"
+          aria-label="Sun"
+        >
+          ☀️
+        </span>
+
+        {/* Moon Emote on Right of track */}
+        <span
+          className={`absolute right-1.5 text-[11px] leading-none pointer-events-none transition-opacity duration-200 ${
+            theme === 'dark' ? 'opacity-25' : 'opacity-85'
+          }`}
+          role="img"
+          aria-label="Moon"
+        >
+          🌙
+        </span>
+
+        {/* iOS Sliding Knob (White / Dark Pill Thumb) */}
+        <span
+          className={`pointer-events-none inline-flex h-6 w-6 transform items-center justify-center rounded-full shadow-md transition-transform duration-300 ease-in-out ${
+            theme === 'dark'
+              ? 'translate-x-7 bg-zinc-900 border border-zinc-700 text-amber-300'
+              : 'translate-x-0 bg-white border border-amber-200 text-amber-600'
+          }`}
+        >
+          <span className="text-[12px] leading-none">
+            {theme === 'dark' ? '🌙' : '☀️'}
+          </span>
+        </span>
+      </button>
+
+      {!compact && (
+        <span className={`text-[9px] font-bold uppercase tracking-wider transition-colors ${
+          theme === 'light' ? 'text-amber-900' : 'text-zinc-400'
+        }`}>
+          {theme === 'light' ? '☀️ Day' : '🌙 Night'}
+        </span>
+      )}
+    </div>
+  );
+
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ role: string, content: string }[]>([]);
   const [suggestedSchemes, setSuggestedSchemes] = useState<{ name: string, eligibility_match: string, apply_url?: string }[]>([]);
@@ -443,6 +534,7 @@ export default function Home() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speechSessionIdRef = useRef<number>(0);
 
   // --- Voice Assistant "Talk Mode" States ---
   const [isTalkMode, setIsTalkMode] = useState(false);
@@ -856,13 +948,14 @@ export default function Home() {
       .trim();
   };
 
-  const fallbackWebSpeech = (cleanText: string, langId: string | null, onEndCallback?: () => void) => {
+  const fallbackWebSpeech = (cleanText: string, langId: string | null, onEndCallback?: () => void, sessionId?: number) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      setIsSpeaking(false);
+      if (sessionId !== undefined && speechSessionIdRef.current === sessionId) {
+        setIsSpeaking(false);
+      }
       if (onEndCallback) onEndCallback();
       return;
     }
-    window.speechSynthesis.cancel();
 
     const langObj = LANGUAGES.find(l => l.id === langId);
     const targetLang = langObj?.langCode || 'hi-IN';
@@ -872,27 +965,41 @@ export default function Home() {
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
-    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onstart = () => {
+      if (sessionId === undefined || speechSessionIdRef.current === sessionId) {
+        setIsSpeaking(true);
+      }
+    };
+
     utterance.onend = () => {
-      setIsSpeaking(false);
+      // If user clicked Stop Audio, this session was superseded - abort callback immediately!
+      if (sessionId !== undefined && speechSessionIdRef.current !== sessionId) return;
       if (onEndCallback) onEndCallback();
     };
+
     utterance.onerror = (e: any) => {
-      setIsSpeaking(false);
+      // If utterance was cancelled by stopSpeaking(), abort immediately to prevent triggering next sentence!
+      if (sessionId !== undefined && speechSessionIdRef.current !== sessionId) return;
       if (onEndCallback) onEndCallback();
     };
 
     setTimeout(() => {
+      if (sessionId !== undefined && speechSessionIdRef.current !== sessionId) return;
       try {
         window.speechSynthesis.speak(utterance);
       } catch (e) {
-        setIsSpeaking(false);
+        if (sessionId !== undefined && speechSessionIdRef.current === sessionId) {
+          setIsSpeaking(false);
+        }
         if (onEndCallback) onEndCallback();
       }
     }, 50);
   };
 
   const stopSpeaking = () => {
+    // Invalidate any currently active or pending speech session so no queued sentences run
+    speechSessionIdRef.current++;
+
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
@@ -912,6 +1019,7 @@ export default function Home() {
       return;
     }
 
+    const currentSessionId = ++speechSessionIdRef.current;
     setIsSpeaking(true);
 
     const sentences = cleanText
@@ -920,7 +1028,9 @@ export default function Home() {
       .filter(s => s.length > 0);
 
     if (sentences.length === 0) {
-      setIsSpeaking(false);
+      if (speechSessionIdRef.current === currentSessionId) {
+        setIsSpeaking(false);
+      }
       if (onEndCallback) onEndCallback();
       return;
     }
@@ -953,14 +1063,19 @@ export default function Home() {
       return promise;
     };
 
-    // Pre-fetch sentence 0 and sentence 1 immediately in parallel!
+    // Pre-fetch sentence 0 and sentence 1 immediately in parallel
     prefetchSentenceBlob(0);
     if (sentences.length > 1) prefetchSentenceBlob(1);
 
     const playSentenceAtIndex = async (index: number) => {
+      // Guard: if user clicked Stop, do not continue
+      if (speechSessionIdRef.current !== currentSessionId) return;
+
       if (index >= sentences.length) {
-        setIsSpeaking(false);
-        currentAudioRef.current = null;
+        if (speechSessionIdRef.current === currentSessionId) {
+          setIsSpeaking(false);
+          currentAudioRef.current = null;
+        }
         if (onEndCallback) onEndCallback();
         return;
       }
@@ -971,6 +1086,7 @@ export default function Home() {
       }
 
       const blob = await prefetchSentenceBlob(index);
+      if (speechSessionIdRef.current !== currentSessionId) return;
 
       if (blob) {
         const audioUrl = URL.createObjectURL(blob);
@@ -979,19 +1095,26 @@ export default function Home() {
 
         audio.onended = () => {
           URL.revokeObjectURL(audioUrl);
+          if (speechSessionIdRef.current !== currentSessionId) return;
           playSentenceAtIndex(index + 1);
         };
 
         audio.onerror = () => {
           URL.revokeObjectURL(audioUrl);
+          if (speechSessionIdRef.current !== currentSessionId) return;
           playSentenceAtIndex(index + 1);
         };
 
-        await audio.play();
+        try {
+          await audio.play();
+        } catch (playErr) {
+          if (speechSessionIdRef.current !== currentSessionId) return;
+          fallbackWebSpeech(sentences[index], langId, () => playSentenceAtIndex(index + 1), currentSessionId);
+        }
         return;
       }
 
-      fallbackWebSpeech(sentences[index], langId, () => playSentenceAtIndex(index + 1));
+      fallbackWebSpeech(sentences[index], langId, () => playSentenceAtIndex(index + 1), currentSessionId);
     };
 
     playSentenceAtIndex(0);
@@ -1264,22 +1387,37 @@ export default function Home() {
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen h-[100dvh] overflow-hidden bg-zinc-950 text-zinc-100 selection:bg-amber-500/30 font-sans">
+    <div className={`fixed inset-0 w-screen h-screen h-[100dvh] overflow-hidden selection:bg-amber-500/30 font-sans transition-colors duration-300 ${
+      theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-zinc-950 text-zinc-100'
+    }`}>
       {/* --- PAGE 1: Language Selection Overlay --- */}
       <div className={`absolute inset-0 z-30 bg-[url('/bg-image.jpg.png')] bg-cover bg-center flex items-center justify-center p-4 overflow-hidden transition-all duration-[700ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${selectedLanguage ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-950/40 to-zinc-950 z-0 pointer-events-none"></div>
-        <div className="bg-zinc-900/85 backdrop-blur-xl p-6 sm:p-7 rounded-3xl border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-sm sm:max-w-md w-full text-center relative overflow-hidden z-10 transform scale-90 sm:scale-95 origin-center transition-transform">
+        <div className={`absolute inset-0 z-0 pointer-events-none transition-colors duration-300 ${
+          theme === 'light' ? 'bg-gradient-to-b from-white/90 via-white/70 to-white/90 backdrop-blur-[1px]' : 'bg-gradient-to-b from-zinc-950 via-zinc-950/40 to-zinc-950'
+        }`}></div>
+        <div className={`p-6 sm:p-7 rounded-3xl border shadow-2xl max-w-sm sm:max-w-md w-full text-center relative overflow-hidden z-10 transform scale-90 sm:scale-95 origin-center transition-all ${
+          theme === 'light' ? 'bg-white/95 backdrop-blur-xl border-slate-200 text-slate-900' : 'bg-zinc-900/85 backdrop-blur-xl border-zinc-800 text-zinc-100 shadow-[0_0_50px_rgba(0,0,0,0.5)]'
+        }`}>
+          <div className="absolute top-3.5 right-3.5 z-20">
+            {renderIosThemeToggle(true)}
+          </div>
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-amber-500/20 rounded-full blur-[50px] -z-10"></div>
           <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-[0_0_25px_rgba(245,158,11,0.3)]">🐦</div>
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 mb-1 tracking-tight">AmritChidiya</h1>
-          <p className="text-zinc-400 mb-4 font-light tracking-wide text-xs uppercase">Apni Sone Ki Chidiya</p>
-          <h2 className="text-sm font-medium mb-3 text-zinc-300">Select Your Language</h2>
+          <h1 className={`text-2xl font-bold mb-1 tracking-tight ${
+            theme === 'light' ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-700 to-amber-950 font-extrabold' : 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500'
+          }`}>AmritChidiya</h1>
+          <p className={`mb-4 font-semibold tracking-wide text-xs uppercase ${theme === 'light' ? 'text-amber-900/60' : 'text-zinc-400'}`}>Apni Sone Ki Chidiya</p>
+          <h2 className={`text-sm font-bold mb-3 ${theme === 'light' ? 'text-slate-800' : 'text-zinc-300'}`}>Select Your Language</h2>
           <div className="grid gap-2.5">
             {LANGUAGES.map(lang => (
               <button
                 key={lang.id}
                 onClick={() => handleLanguageSelect(lang.id)}
-                className="py-2.5 px-4 rounded-xl border border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all text-sm font-medium text-zinc-300 hover:text-amber-400 hover:shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+                className={`py-2.5 px-4 rounded-xl border transition-all text-sm font-semibold shadow-xs ${
+                  theme === 'light'
+                    ? 'border-slate-200 bg-slate-50 hover:border-amber-400 hover:bg-amber-50 text-slate-800 hover:text-amber-900'
+                    : 'border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/10 text-zinc-300 hover:text-amber-400 hover:shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                }`}
               >
                 {lang.label}
               </button>
@@ -1292,15 +1430,27 @@ export default function Home() {
       <div className="absolute inset-0 z-10 flex w-full h-full max-h-[100dvh] overflow-hidden">
 
           {/* Left Sidebar (Desktop Fixed) */}
-          <div className="hidden lg:flex w-64 sm:w-72 shrink-0 bg-zinc-950/50 backdrop-blur-3xl border-r border-zinc-800/50 flex-col z-10">
+          <div className={`hidden lg:flex w-64 sm:w-72 shrink-0 border-r flex-col z-10 transition-colors duration-300 ${
+            theme === 'light'
+              ? 'bg-white/90 backdrop-blur-2xl border-slate-200/90 text-slate-900 shadow-sm'
+              : 'bg-zinc-950/50 backdrop-blur-3xl border-zinc-800/50 text-zinc-100'
+          }`}>
 
             {/* Header / Brand */}
-            <div className="p-4 sm:p-5 border-b border-zinc-800/50 relative overflow-hidden flex items-center justify-between">
+            <div className={`p-4 sm:p-5 border-b relative overflow-hidden flex items-center justify-between transition-colors ${
+              theme === 'light' ? 'border-slate-200/80' : 'border-zinc-800/50'
+            }`}>
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-lg shadow-[0_0_15px_rgba(245,158,11,0.3)]">🐦</div>
                 <div>
-                  <h1 className="text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 tracking-tight">AmritChidiya</h1>
-                  <p className="text-[8px] font-medium text-zinc-500 uppercase tracking-widest">Sone Ki Chidiya</p>
+                  <h1 className={`text-base font-bold tracking-tight ${
+                    theme === 'light'
+                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-700 to-amber-950 font-extrabold'
+                      : 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500'
+                  }`}>AmritChidiya</h1>
+                  <p className={`text-[8px] font-bold uppercase tracking-widest ${
+                    theme === 'light' ? 'text-amber-900/60' : 'text-zinc-500'
+                  }`}>Sone Ki Chidiya</p>
                 </div>
               </div>
 
@@ -1310,7 +1460,11 @@ export default function Home() {
                     setAuthTab('login');
                     setShowAuthModal(true);
                   }}
-                  className="text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-lg transition-all"
+                  className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-all ${
+                    theme === 'light'
+                      ? 'text-amber-900 hover:text-amber-950 bg-amber-100 hover:bg-amber-200 border-amber-300 shadow-xs'
+                      : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30'
+                  }`}
                 >
                   {t.signIn}
                 </button>
@@ -1319,20 +1473,24 @@ export default function Home() {
 
             {/* User Profile Pill (If Logged In) */}
             {currentUser && (
-              <div className="mx-3 mt-3 p-2.5 bg-zinc-900/80 border border-zinc-800 rounded-2xl flex items-center justify-between shadow-md">
+              <div className={`mx-3 mt-3 p-2.5 border rounded-2xl flex items-center justify-between shadow-xs transition-colors ${
+                theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-zinc-900/80 border-zinc-800 text-zinc-200 shadow-md'
+              }`}>
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-bold text-zinc-950 text-xs shrink-0">
                     {currentUser.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="truncate">
-                    <p className="text-xs font-bold text-zinc-200 truncate">{currentUser.name}</p>
-                    <p className="text-[9px] text-zinc-500 truncate">{currentUser.email}</p>
+                    <p className={`text-xs font-bold truncate ${theme === 'light' ? 'text-slate-900' : 'text-zinc-200'}`}>{currentUser.name}</p>
+                    <p className={`text-[9px] truncate ${theme === 'light' ? 'text-slate-500' : 'text-zinc-500'}`}>{currentUser.email}</p>
                   </div>
                 </div>
                 <button
                   onClick={handleLogout}
                   title="Sign Out"
-                  className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                  className={`p-1.5 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all ${
+                    theme === 'light' ? 'text-slate-400' : 'text-zinc-500'
+                  }`}
                 >
                   <LogOut size={15} />
                 </button>
@@ -1343,7 +1501,11 @@ export default function Home() {
             <div className="p-3">
               <button
                 onClick={handleStartNewChat}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl font-medium text-xs hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10 transition-all duration-300 shadow-sm"
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs border transition-all duration-300 shadow-xs ${
+                  theme === 'light'
+                    ? 'bg-white border-slate-300 text-slate-800 hover:border-amber-400 hover:text-amber-900 hover:bg-amber-50/80'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10 shadow-sm'
+                }`}
               >
                 <Plus size={15} />
                 {LANGUAGES.find(l => l.id === selectedLanguage)?.newChatLabel || 'Naya Chat'}
@@ -1351,44 +1513,59 @@ export default function Home() {
             </div>
 
             {/* Saved Chat History Section ("Purani Chats") */}
-            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 custom-scrollbar border-t border-zinc-800/40">
-              <div className="flex items-center gap-2 px-2 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+            <div className={`flex-1 overflow-y-auto px-3 py-2 space-y-1.5 custom-scrollbar border-t transition-colors ${
+              theme === 'light' ? 'border-slate-200 text-slate-800' : 'border-zinc-800/40 text-zinc-200'
+            }`}>
+              <div className={`flex items-center gap-2 px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                theme === 'light' ? 'text-slate-600' : 'text-zinc-500'
+              }`}>
                 <History size={12} />
                 <span>{t.puraniChats}</span>
               </div>
 
               {!currentUser ? (
-                <div className="p-3.5 bg-zinc-900/40 border border-zinc-800/60 rounded-xl text-center">
-                  <Lock size={18} className="mx-auto text-amber-500/60 mb-1.5" />
-                  <p className="text-xs font-medium text-zinc-400">{t.saveHistoryPromptTitle}</p>
-                  <p className="text-[10px] text-zinc-600 mt-0.5">{t.saveHistoryPromptSub}</p>
+                <div className={`p-3.5 border rounded-xl text-center transition-colors shadow-xs ${
+                  theme === 'light' ? 'bg-amber-50/80 border-amber-200/90 text-slate-800' : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-400'
+                }`}>
+                  <Lock size={18} className="mx-auto text-amber-500 mb-1.5" />
+                  <p className={`text-xs font-bold ${theme === 'light' ? 'text-slate-800' : 'text-zinc-400'}`}>{t.saveHistoryPromptTitle}</p>
+                  <p className={`text-[10px] mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-zinc-600'}`}>{t.saveHistoryPromptSub}</p>
                   <button
                     onClick={() => {
                       setAuthTab('login');
                       setShowAuthModal(true);
                     }}
-                    className="mt-2.5 text-xs font-bold text-amber-400 underline hover:text-amber-300"
+                    className={`mt-2.5 text-xs font-bold underline ${theme === 'light' ? 'text-amber-800 hover:text-amber-950' : 'text-amber-400 hover:text-amber-300'}`}
                   >
                     {t.signIn}
                   </button>
                 </div>
               ) : savedChats.length === 0 ? (
-                <p className="text-xs text-zinc-600 text-center py-6 italic">{t.noSavedChats}</p>
+                <p className={`text-xs text-center py-6 italic ${theme === 'light' ? 'text-slate-500' : 'text-zinc-600'}`}>{t.noSavedChats}</p>
               ) : (
                 savedChats.map((chat) => (
                   <div
                     key={chat.id}
                     onClick={() => loadSavedChat(chat)}
-                    className={`w-full text-left p-2.5 px-3 rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${currentChatId === chat.id
-                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
-                        : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-                      }`}
+                    className={`w-full text-left p-2.5 px-3 rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${
+                      currentChatId === chat.id
+                        ? theme === 'light'
+                          ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold shadow-xs'
+                          : 'bg-amber-500/15 border-amber-500/40 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                        : theme === 'light'
+                          ? 'bg-white/80 border-slate-200 text-slate-700 hover:text-slate-950 hover:bg-slate-100 hover:border-slate-300'
+                          : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                    }`}
                   >
                     <div className="truncate mr-2">
-                      <p className="text-[11px] sm:text-xs font-semibold truncate group-hover:text-amber-400 transition-colors">
+                      <p className={`text-[11px] sm:text-xs font-semibold truncate transition-colors ${
+                        theme === 'light' ? 'group-hover:text-amber-800' : 'group-hover:text-amber-400'
+                      }`}>
                         {chat.title}
                       </p>
-                      <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 mt-0.5">
+                      <div className={`flex items-center gap-1.5 text-[9px] mt-0.5 ${
+                        theme === 'light' ? 'text-slate-500' : 'text-zinc-500'
+                      }`}>
                         <span>{chat.date}</span>
                         <span>•</span>
                         <span>{chat.schemes.length} {t.schemesCount}</span>
@@ -1399,69 +1576,115 @@ export default function Home() {
                       <button
                         onClick={(e) => handleDeleteChat(chat.id, e)}
                         title="Delete chat"
-                        className="p-1 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        className="p-1 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                       >
                         <Trash2 size={12} />
                       </button>
-                      <ChevronRight size={13} className="text-zinc-600 group-hover:text-amber-400" />
+                      <ChevronRight size={13} className={theme === 'light' ? 'text-slate-400 group-hover:text-amber-800' : 'text-zinc-600 group-hover:text-amber-400'} />
                     </div>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Sidebar Footer */}
-            <div className="p-3 border-t border-zinc-800/50 text-[10px] font-medium text-zinc-600 flex flex-col gap-1.5">
-              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> System Online</div>
-              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]"></span> Lang: {selectedLanguage || 'None'}</div>
+            {/* Sidebar Footer with iOS Sliding Day/Night Theme Switch */}
+            <div className={`p-3 border-t text-[10px] font-medium transition-colors duration-300 flex items-center justify-between ${
+              theme === 'light' ? 'border-slate-200/90 bg-slate-50/80 text-slate-700' : 'border-zinc-800/50 bg-zinc-950/40 text-zinc-500'
+            }`}>
+              <div className="flex flex-col gap-1.5 min-w-0 pr-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span>
+                  <span className={theme === 'light' ? 'text-slate-800 font-semibold' : 'text-zinc-400'}>System Online</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]"></span>
+                  <span className={theme === 'light' ? 'text-slate-800 font-semibold' : 'text-zinc-400'}>Lang: {selectedLanguage || 'None'}</span>
+                </div>
+              </div>
+
+              {/* iOS Theme Sliding Button */}
+              <div className="shrink-0">
+                {renderIosThemeToggle()}
+              </div>
             </div>
           </div>
 
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col relative z-10 bg-[url('/bg-image.jpg.png')] bg-cover bg-center min-w-0">
-            <div className="absolute inset-0 bg-zinc-950/75 backdrop-blur-[1px] pointer-events-none z-0"></div>
+            <div className={`absolute inset-0 pointer-events-none z-0 transition-colors duration-300 ${
+              theme === 'light'
+                ? 'bg-white/80 backdrop-blur-[2px]'
+                : 'bg-zinc-950/75 backdrop-blur-[1px]'
+            }`}></div>
 
             {/* Top Bar with Auth Status, Mobile Controls & Actions */}
-            <div className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 bg-zinc-950/80 backdrop-blur-xl z-10 shrink-0 border-b border-zinc-800/40">
+            <div className={`h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 z-10 shrink-0 border-b backdrop-blur-xl transition-colors duration-300 ${
+              theme === 'light'
+                ? 'bg-white/90 border-slate-200/80 shadow-sm'
+                : 'bg-zinc-950/80 border-zinc-800/40'
+            }`}>
               <div className="flex items-center gap-2">
                 {/* Mobile Menu Button */}
                 <button
                   onClick={() => setShowLeftMobileMenu(true)}
-                  className="lg:hidden p-2 text-zinc-300 hover:text-amber-400 bg-zinc-900 border border-zinc-800 rounded-xl"
+                  className={`lg:hidden p-2 rounded-xl transition-colors ${
+                    theme === 'light'
+                      ? 'text-slate-700 hover:text-amber-600 bg-slate-100 border border-slate-200'
+                      : 'text-zinc-300 hover:text-amber-400 bg-zinc-900 border border-zinc-800'
+                  }`}
                   title="Menu"
                 >
                   <Menu size={17} />
                 </button>
-                <h2 className="text-xs sm:text-sm font-bold text-zinc-400 tracking-wider uppercase drop-shadow-md flex items-center gap-1.5 truncate">
+                <h2 className={`text-xs sm:text-sm font-bold tracking-wider uppercase drop-shadow-sm flex items-center gap-1.5 truncate ${
+                  theme === 'light' ? 'text-slate-800' : 'text-zinc-400'
+                }`}>
                   <span>AmritChidiya</span>
                 </h2>
               </div>
 
               <div className="flex items-center gap-2 sm:gap-2.5">
+                {/* Compact Theme Toggle for Top Bar / Mobile */}
+                <div className="flex lg:hidden">
+                  {renderIosThemeToggle(true)}
+                </div>
+
                 {/* USP: Eligibility Calculator Button */}
                 <button
                   onClick={() => setShowCalculatorModal(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-semibold hover:bg-amber-500/20 hover:text-amber-200 transition-all shadow-sm cursor-pointer"
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold transition-all shadow-sm cursor-pointer ${
+                    theme === 'light'
+                      ? 'bg-amber-500/15 border border-amber-500/40 text-amber-800 hover:bg-amber-500/25 hover:text-amber-900'
+                      : 'bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200'
+                  }`}
                   title={t.calculatorBtn || "Calculator"}
                 >
-                  <Calculator size={13} className="text-amber-400" />
+                  <Calculator size={13} className={theme === 'light' ? 'text-amber-600' : 'text-amber-400'} />
                   <span className="hidden md:inline">{t.calculatorBtn || "Calculator"}</span>
                 </button>
 
                 {/* USP: Official Domain Shield & Anti-Scam Checker */}
                 <button
                   onClick={() => setShowScamShieldModal(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-semibold hover:bg-emerald-500/20 hover:text-emerald-200 transition-all shadow-sm cursor-pointer"
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold transition-all shadow-sm cursor-pointer ${
+                    theme === 'light'
+                      ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-800 hover:bg-emerald-500/25 hover:text-emerald-900'
+                      : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200'
+                  }`}
                   title={t.domainShieldBtn || "Domain Shield"}
                 >
-                  <ShieldCheck size={13} className="text-emerald-400" />
+                  <ShieldCheck size={13} className={theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'} />
                   <span className="hidden md:inline">{t.domainShieldBtn || "Domain Shield"}</span>
                 </button>
 
                 {/* Mobile Matches Button */}
                 <button
                   onClick={() => setShowRightMobileMenu(true)}
-                  className="lg:hidden p-1.5 px-2.5 text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-1 text-[11px] font-bold"
+                  className={`lg:hidden p-1.5 px-2.5 rounded-xl flex items-center gap-1 text-[11px] font-bold ${
+                    theme === 'light'
+                      ? 'text-amber-800 bg-amber-500/15 border border-amber-500/40'
+                      : 'text-amber-400 bg-amber-500/10 border border-amber-500/30'
+                  }`}
                   title="Matches"
                 >
                   <Sparkles size={14} />
@@ -1470,7 +1693,11 @@ export default function Home() {
 
                 <button
                   onClick={handleStartNewChat}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl text-xs font-semibold hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10 transition-all shadow-sm"
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold transition-all shadow-sm ${
+                    theme === 'light'
+                      ? 'bg-slate-100 border border-slate-200 text-slate-700 hover:border-amber-500/50 hover:text-amber-700 hover:bg-amber-500/10'
+                      : 'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10'
+                  }`}
                 >
                   <Plus size={14} />
                   <span className="hidden sm:inline">{LANGUAGES.find(l => l.id === selectedLanguage)?.newChatLabel || 'Naya Chat'}</span>
@@ -1485,21 +1712,29 @@ export default function Home() {
 
                 return (
                   <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[92%] sm:max-w-[80%] px-4 py-3 sm:px-5 sm:py-4 rounded-2xl text-xs sm:text-sm leading-relaxed backdrop-blur-md relative overflow-hidden ${isAssistant
-                      ? 'bg-zinc-900/80 border border-zinc-800/80 rounded-tl-sm text-zinc-300 shadow-lg'
-                      : 'bg-amber-500/10 border border-amber-500/30 text-amber-100 rounded-tr-sm shadow-[0_0_20px_rgba(245,158,11,0.05)]'}`}>
+                    <div className={`max-w-[92%] sm:max-w-[80%] px-4 py-3 sm:px-5 sm:py-4 rounded-2xl text-xs sm:text-sm leading-relaxed backdrop-blur-md relative overflow-hidden transition-all ${isAssistant
+                      ? theme === 'light'
+                        ? 'bg-white/95 border border-slate-200/90 rounded-tl-sm text-slate-800 shadow-md'
+                        : 'bg-zinc-900/80 border border-zinc-800/80 rounded-tl-sm text-zinc-300 shadow-lg'
+                      : theme === 'light'
+                        ? 'bg-amber-500/15 border border-amber-500/35 text-slate-900 rounded-tr-sm shadow-sm'
+                        : 'bg-amber-500/10 border border-amber-500/30 text-amber-100 rounded-tr-sm shadow-[0_0_20px_rgba(245,158,11,0.05)]'}`}>
 
                       {isLockedForGuest ? (
                         <div className="relative py-2">
                           <div className="filter blur-md select-none opacity-20 pointer-events-none max-h-36 overflow-hidden">
-                            <MarkdownContent content={msg.content} isAssistant={isAssistant} />
+                            <MarkdownContent content={msg.content} isAssistant={isAssistant} theme={theme} />
                           </div>
-                          <div className="absolute inset-0 bg-zinc-950/85 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center rounded-xl border border-amber-500/30 shadow-2xl">
-                            <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1.5 text-base animate-pulse">
+                          <div className={`absolute inset-0 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center rounded-xl border shadow-2xl ${
+                            theme === 'light'
+                              ? 'bg-white/90 border-amber-500/40 text-slate-800'
+                              : 'bg-zinc-950/85 border-amber-500/30 text-zinc-200'
+                          }`}>
+                            <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mb-1.5 text-base animate-pulse">
                               🔒
                             </div>
-                            <h4 className="font-bold text-amber-200 text-xs sm:text-sm">{t.schemesMatchedTitle}</h4>
-                            <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 max-w-md leading-relaxed">
+                            <h4 className={`font-bold text-xs sm:text-sm ${theme === 'light' ? 'text-amber-800' : 'text-amber-200'}`}>{t.schemesMatchedTitle}</h4>
+                            <p className={`text-[10px] sm:text-[11px] mt-0.5 max-w-md leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-zinc-400'}`}>
                               {t.authSubtitle}
                             </p>
                             <button
@@ -1515,12 +1750,16 @@ export default function Home() {
                         </div>
                       ) : (
                         <>
-                          <MarkdownContent content={msg.content} isAssistant={isAssistant} />
+                          <MarkdownContent content={msg.content} isAssistant={isAssistant} theme={theme} />
                           {isAssistant && (
                             <div className="mt-2.5 flex justify-end">
                               <button
                                 onClick={() => speakMessage(msg.content, selectedLanguage)}
-                                className="text-zinc-500 hover:text-amber-400 transition-colors flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider bg-zinc-950/50 px-2 py-1 rounded-md border border-zinc-800/50 hover:border-amber-500/30 hover:bg-amber-500/5"
+                                className={`transition-colors flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider px-2 py-1 rounded-md border ${
+                                  theme === 'light'
+                                    ? 'text-slate-500 hover:text-amber-700 bg-slate-100/80 border-slate-200 hover:border-amber-500/40 hover:bg-amber-50'
+                                    : 'text-zinc-500 hover:text-amber-400 bg-zinc-950/50 border-zinc-800/50 hover:border-amber-500/30 hover:bg-amber-500/5'
+                                }`}
                               >
                                 <Volume2 size={13} /> {t.listen}
                               </button>
@@ -1533,7 +1772,11 @@ export default function Home() {
                 );
               })}
               {loading && !isTalkMode && (
-                <div className="text-amber-500/70 text-xs font-medium flex items-center gap-2.5 bg-zinc-900/50 inline-flex px-3.5 py-1.5 rounded-full border border-amber-500/10">
+                <div className={`text-xs font-medium flex items-center gap-2.5 inline-flex px-3.5 py-1.5 rounded-full border ${
+                  theme === 'light'
+                    ? 'text-amber-800 bg-amber-50 border-amber-200 shadow-sm'
+                    : 'text-amber-500/70 bg-zinc-900/50 border-amber-500/10'
+                }`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_5px_rgba(245,158,11,0.5)]"></span> {t.processingRequest}
                 </div>
               )}
@@ -1549,15 +1792,33 @@ export default function Home() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="pt-2.5 pb-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] px-3 sm:px-6 bg-zinc-950/85 backdrop-blur-xl border-t border-zinc-800/40 z-10 shrink-0">
+            <div className={`pt-2.5 pb-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] px-3 sm:px-6 backdrop-blur-xl border-t z-10 shrink-0 transition-colors duration-300 ${
+              theme === 'light'
+                ? 'bg-white/90 border-slate-200/80 shadow-md'
+                : 'bg-zinc-950/85 border-zinc-800/40'
+            }`}>
               <div className="flex gap-2 max-w-2xl sm:max-w-3xl mx-auto relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 to-zinc-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                <div className={`absolute -inset-1 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 ${
+                  theme === 'light'
+                    ? 'bg-gradient-to-r from-amber-400/30 to-slate-300'
+                    : 'bg-gradient-to-r from-amber-500/20 to-zinc-800'
+                }`}></div>
 
-                <div className="relative flex gap-1.5 sm:gap-2 w-full bg-zinc-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-zinc-800/80 items-center shadow-2xl">
+                <div className={`relative flex gap-1.5 sm:gap-2 w-full backdrop-blur-md p-1.5 rounded-2xl border items-center shadow-2xl transition-all ${
+                  theme === 'light'
+                    ? 'bg-white/95 border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]'
+                    : 'bg-zinc-900/90 border-zinc-800/80 shadow-2xl'
+                }`}>
                   <button
                     onClick={toggleListening}
                     title="Voice dictation"
-                    className={`p-2 rounded-xl transition-colors ${isListening ? 'text-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse' : 'text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10'}`}
+                    className={`p-2 rounded-xl transition-colors ${
+                      isListening
+                        ? 'text-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse'
+                        : theme === 'light'
+                          ? 'text-slate-500 hover:text-amber-600 hover:bg-amber-50'
+                          : 'text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10'
+                    }`}
                   >
                     <Mic size={17} />
                   </button>
@@ -1565,11 +1826,15 @@ export default function Home() {
                   <button
                     onClick={openTalkMode}
                     title={currentUser ? "Enter hands-free talk mode" : "Talk Mode requires Sign In"}
-                    className="px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 rounded-xl transition-all flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider shrink-0"
+                    className={`px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider shrink-0 ${
+                      theme === 'light'
+                        ? 'bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 text-amber-800'
+                        : 'bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400'
+                    }`}
                   >
                     <Headphones size={15} />
                     <span className="hidden sm:inline">Talk Mode</span>
-                    {!currentUser && <Lock size={10} className="text-amber-400" />}
+                    {!currentUser && <Lock size={10} className={theme === 'light' ? 'text-amber-700' : 'text-amber-400'} />}
                   </button>
 
                   <input
@@ -1578,13 +1843,21 @@ export default function Home() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                     placeholder={t.placeholderInput}
-                    className="flex-1 bg-transparent border-none focus:ring-0 px-1.5 py-1.5 outline-none text-base sm:text-sm text-zinc-200 placeholder:text-zinc-600 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px] sm:placeholder:text-[10px]"
+                    className={`flex-1 bg-transparent border-none focus:ring-0 px-1.5 py-1.5 outline-none text-base sm:text-sm placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px] sm:placeholder:text-[10px] ${
+                      theme === 'light'
+                        ? 'text-slate-900 placeholder:text-slate-400'
+                        : 'text-zinc-200 placeholder:text-zinc-600'
+                    }`}
                   />
 
                   <button
                     onClick={() => sendMessage()}
                     disabled={loading}
-                    className="px-3.5 py-2 sm:px-5 sm:py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 rounded-xl font-bold flex items-center gap-1.5 disabled:opacity-50 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] shrink-0 text-xs sm:text-sm"
+                    className={`px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-xl font-bold flex items-center gap-1.5 disabled:opacity-50 transition-all duration-300 shrink-0 text-xs sm:text-sm ${
+                      theme === 'light'
+                        ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'
+                        : 'bg-zinc-100 hover:bg-white text-zinc-950 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]'
+                    }`}
                   >
                     <Send size={14} />
                   </button>
@@ -1594,15 +1867,25 @@ export default function Home() {
           </div>
 
           {/* Right Sidebar (Desktop Fixed) */}
-          <div className="hidden lg:flex w-64 sm:w-72 shrink-0 bg-zinc-950/50 backdrop-blur-3xl border-l border-zinc-800/50 p-4 flex-col z-10 h-full overflow-hidden">
+          <div className={`hidden lg:flex w-64 sm:w-72 shrink-0 backdrop-blur-3xl border-l p-4 flex-col z-10 h-full overflow-hidden transition-colors duration-300 ${
+            theme === 'light'
+              ? 'bg-white/80 border-slate-200/80'
+              : 'bg-zinc-950/50 border-zinc-800/50'
+          }`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-zinc-300 font-semibold flex items-center gap-2 text-xs uppercase tracking-wider">
+              <h3 className={`font-semibold flex items-center gap-2 text-xs uppercase tracking-wider ${
+                theme === 'light' ? 'text-slate-700' : 'text-zinc-300'
+              }`}>
                 <span className="w-4 h-px bg-gradient-to-r from-amber-500 to-transparent"></span>
                 {t.matchesTitle}
               </h3>
               <button
                 onClick={() => setShowCscDossierModal(true)}
-                className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-sm"
+                className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-sm ${
+                  theme === 'light'
+                    ? 'text-amber-800 hover:text-amber-900 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40'
+                    : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30'
+                }`}
                 title={t.cscDossierBtn || "CSC Dossier"}
               >
                 <FileText size={11} />
@@ -1613,13 +1896,17 @@ export default function Home() {
             <div className="space-y-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
 
               {!currentUser && suggestedSchemes.length > 0 ? (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 text-center space-y-3 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto text-lg">
+                <div className={`rounded-2xl p-5 text-center space-y-3 border shadow-sm ${
+                  theme === 'light'
+                    ? 'bg-amber-500/10 border-amber-500/30'
+                    : 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)]'
+                }`}>
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto text-lg">
                     🔒
                   </div>
                   <div>
-                    <h4 className="font-bold text-amber-200 text-xs sm:text-sm">{t.schemesMatchedTitle}</h4>
-                    <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                    <h4 className={`font-bold text-xs sm:text-sm ${theme === 'light' ? 'text-amber-800' : 'text-amber-200'}`}>{t.schemesMatchedTitle}</h4>
+                    <p className={`text-[11px] mt-0.5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-zinc-400'}`}>
                       {t.schemesMatchedSub}
                     </p>
                   </div>
@@ -1634,14 +1921,22 @@ export default function Home() {
                   </button>
                 </div>
               ) : suggestedSchemes.length === 0 ? (
-                <div className="text-zinc-600 text-[10px] uppercase tracking-widest text-center mt-6 p-6 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/30 font-medium leading-relaxed">
-                  {t.awaitingDataTitle}<br /><span className="text-zinc-700">{t.awaitingDataSub}</span>
+                <div className={`text-[10px] uppercase tracking-widest text-center mt-6 p-6 border border-dashed rounded-2xl font-medium leading-relaxed ${
+                  theme === 'light'
+                    ? 'text-slate-500 border-slate-300 bg-slate-50/70'
+                    : 'text-zinc-600 border-zinc-800 bg-zinc-900/30'
+                }`}>
+                  {t.awaitingDataTitle}<br /><span className={theme === 'light' ? 'text-slate-400' : 'text-zinc-700'}>{t.awaitingDataSub}</span>
                 </div>
               ) : (
                 suggestedSchemes.map((scheme, idx) => {
                   const schemeUrl = scheme.apply_url || resolveSchemeUrl(scheme.name);
                   return (
-                    <div key={idx} className="bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 hover:border-amber-500/50 transition-all duration-300 group relative overflow-hidden flex flex-col justify-between">
+                    <div key={idx} className={`p-4 rounded-2xl border transition-all duration-300 group relative overflow-hidden flex flex-col justify-between ${
+                      theme === 'light'
+                        ? 'bg-white/90 border-slate-200 hover:border-amber-500/60 shadow-sm'
+                        : 'bg-zinc-900/50 border-zinc-800 hover:border-amber-500/50'
+                    }`}>
                       <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/0 group-hover:bg-amber-500 transition-colors duration-300"></div>
 
                       <div>
@@ -1649,33 +1944,51 @@ export default function Home() {
                           href={schemeUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-semibold text-amber-300 hover:text-amber-200 transition-colors text-xs sm:text-sm inline-flex items-center gap-1.5 underline underline-offset-4 decoration-amber-500/30 hover:decoration-amber-400 group-hover:text-amber-400"
+                          className={`font-semibold transition-colors text-xs sm:text-sm inline-flex items-center gap-1.5 underline underline-offset-4 ${
+                            theme === 'light'
+                              ? 'text-amber-800 hover:text-amber-900 decoration-amber-500/40 group-hover:text-amber-900'
+                              : 'text-amber-300 hover:text-amber-200 decoration-amber-500/30 group-hover:text-amber-400'
+                          }`}
                           title={`Click to visit official application portal: ${schemeUrl}`}
                         >
                           <span>{scheme.name}</span>
-                          <ExternalLink size={13} className="shrink-0 text-amber-400" />
+                          <ExternalLink size={13} className="shrink-0 text-amber-500" />
                         </a>
 
                         <div className="mt-2.5">
-                          <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20 backdrop-blur-sm">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border backdrop-blur-sm ${
+                            theme === 'light'
+                              ? 'text-amber-800 bg-amber-500/15 border-amber-500/30'
+                              : 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                          }`}>
                             {scheme.eligibility_match}
                           </span>
                         </div>
                       </div>
 
-                      <div className="mt-3.5 pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-1.5">
+                      <div className={`mt-3.5 pt-3 border-t flex items-center justify-between gap-1.5 ${
+                        theme === 'light' ? 'border-slate-200' : 'border-zinc-800/60'
+                      }`}>
                         <a
                           href={schemeUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] font-bold text-zinc-300 hover:text-amber-300 bg-zinc-800/80 hover:bg-zinc-800 px-2 py-1 rounded-lg border border-zinc-700/60 transition-all inline-flex items-center gap-1 shrink-0"
+                          className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all inline-flex items-center gap-1 shrink-0 ${
+                            theme === 'light'
+                              ? 'text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border-slate-300'
+                              : 'text-zinc-300 hover:text-amber-300 bg-zinc-800/80 hover:bg-zinc-800 border-zinc-700/60'
+                          }`}
                         >
                           <span>Apply Site</span>
                           <ExternalLink size={10} />
                         </a>
                         <button
                           onClick={() => handleStepByStepHelp(scheme.name)}
-                          className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1 rounded-lg border border-amber-500/30 transition-all inline-flex items-center gap-1"
+                          className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all inline-flex items-center gap-1 ${
+                            theme === 'light'
+                              ? 'text-amber-800 hover:text-amber-900 bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/40'
+                              : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30'
+                          }`}
                           title="Ask AI for step-by-step registration guide"
                         >
                           <span>Step-by-Step Help 🚀</span>
@@ -1691,20 +2004,32 @@ export default function Home() {
         </div>
 
       {/* --- MOBILE LEFT DRAWER OVERLAY --- */}
-
-
       {showLeftMobileMenu && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm transition-opacity"
+            className={`fixed inset-0 backdrop-blur-sm transition-opacity ${
+              theme === 'light' ? 'bg-slate-900/40' : 'bg-zinc-950/80'
+            }`}
             onClick={() => setShowLeftMobileMenu(false)}
           ></div>
-          <div className="relative w-72 max-w-[85vw] bg-zinc-950 border-r border-zinc-800 flex flex-col h-full z-10 shadow-2xl animate-in slide-in-from-left duration-300">
-            <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Purani Chats & Account</span>
+          <div className={`relative w-72 max-w-[85vw] border-r flex flex-col h-full z-10 shadow-2xl animate-in slide-in-from-left duration-300 ${
+            theme === 'light'
+              ? 'bg-white border-slate-200 text-slate-800'
+              : 'bg-zinc-950 border-zinc-800 text-zinc-200'
+          }`}>
+            <div className={`p-3 border-b flex items-center justify-between ${
+              theme === 'light' ? 'border-slate-200' : 'border-zinc-800'
+            }`}>
+              <span className={`text-xs font-bold uppercase tracking-wider ${
+                theme === 'light' ? 'text-amber-800' : 'text-amber-400'
+              }`}>Purani Chats & Account</span>
               <button
                 onClick={() => setShowLeftMobileMenu(false)}
-                className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-lg bg-zinc-900"
+                className={`p-1.5 rounded-lg ${
+                  theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900 bg-slate-100'
+                    : 'text-zinc-400 hover:text-zinc-100 bg-zinc-900'
+                }`}
               >
                 <X size={16} />
               </button>
@@ -1712,20 +2037,24 @@ export default function Home() {
 
             {/* User Profile Pill */}
             {currentUser ? (
-              <div className="mx-3 mt-3 p-2.5 bg-zinc-900/80 border border-zinc-800 rounded-2xl flex items-center justify-between shadow-md">
+              <div className={`mx-3 mt-3 p-2.5 border rounded-2xl flex items-center justify-between shadow-sm ${
+                theme === 'light'
+                  ? 'bg-slate-50 border-slate-200'
+                  : 'bg-zinc-900/80 border-zinc-800'
+              }`}>
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-bold text-zinc-950 text-xs shrink-0">
                     {currentUser.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="truncate">
-                    <p className="text-xs font-bold text-zinc-200 truncate">{currentUser.name}</p>
-                    <p className="text-[9px] text-zinc-500 truncate">{currentUser.email}</p>
+                    <p className={`text-xs font-bold truncate ${theme === 'light' ? 'text-slate-800' : 'text-zinc-200'}`}>{currentUser.name}</p>
+                    <p className={`text-[9px] truncate ${theme === 'light' ? 'text-slate-500' : 'text-zinc-500'}`}>{currentUser.email}</p>
                   </div>
                 </div>
                 <button
                   onClick={handleLogout}
                   title="Sign Out"
-                  className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                  className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                 >
                   <LogOut size={15} />
                 </button>
@@ -1738,7 +2067,11 @@ export default function Home() {
                     setAuthTab('login');
                     setShowAuthModal(true);
                   }}
-                  className="w-full py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-bold uppercase"
+                  className={`w-full py-2 border rounded-xl text-xs font-bold uppercase transition-all ${
+                    theme === 'light'
+                      ? 'bg-amber-500/15 border-amber-500/35 text-amber-800'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  }`}
                 >
                   {t.signIn}
                 </button>
@@ -1751,37 +2084,47 @@ export default function Home() {
                   setShowLeftMobileMenu(false);
                   handleStartNewChat();
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl font-medium text-xs hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10 transition-all duration-300 shadow-sm"
+                className={`w-full flex items-center justify-center gap-2 py-2.5 border rounded-xl font-medium text-xs transition-all duration-300 shadow-sm ${
+                  theme === 'light'
+                    ? 'bg-slate-100 border-slate-200 text-slate-700 hover:border-amber-500/50 hover:text-amber-800 hover:bg-amber-500/10'
+                    : 'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/10'
+                }`}
               >
                 <Plus size={15} />
                 {LANGUAGES.find(l => l.id === selectedLanguage)?.newChatLabel || 'Naya Chat'}
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 custom-scrollbar border-t border-zinc-800/40">
-              <div className="flex items-center gap-2 px-2 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+            <div className={`flex-1 overflow-y-auto px-3 py-2 space-y-1.5 custom-scrollbar border-t ${
+              theme === 'light' ? 'border-slate-200' : 'border-zinc-800/40'
+            }`}>
+              <div className={`flex items-center gap-2 px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                theme === 'light' ? 'text-slate-500' : 'text-zinc-500'
+              }`}>
                 <History size={12} />
                 <span>{t.puraniChats}</span>
               </div>
 
               {!currentUser ? (
-                <div className="p-3.5 bg-zinc-900/40 border border-zinc-800/60 rounded-xl text-center">
-                  <Lock size={18} className="mx-auto text-amber-500/60 mb-1.5" />
-                  <p className="text-xs font-medium text-zinc-400">{t.saveHistoryPromptTitle}</p>
-                  <p className="text-[10px] text-zinc-600 mt-0.5">{t.saveHistoryPromptSub}</p>
+                <div className={`p-3.5 border rounded-xl text-center ${
+                  theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900/40 border-zinc-800/60'
+                }`}>
+                  <Lock size={18} className="mx-auto text-amber-500/80 mb-1.5" />
+                  <p className={`text-xs font-medium ${theme === 'light' ? 'text-slate-700' : 'text-zinc-400'}`}>{t.saveHistoryPromptTitle}</p>
+                  <p className={`text-[10px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-zinc-600'}`}>{t.saveHistoryPromptSub}</p>
                   <button
                     onClick={() => {
                       setShowLeftMobileMenu(false);
                       setAuthTab('login');
                       setShowAuthModal(true);
                     }}
-                    className="mt-2.5 text-xs font-bold text-amber-400 underline hover:text-amber-300"
+                    className="mt-2.5 text-xs font-bold text-amber-600 underline hover:text-amber-500"
                   >
                     {t.signIn}
                   </button>
                 </div>
               ) : savedChats.length === 0 ? (
-                <p className="text-xs text-zinc-600 text-center py-6 italic">{t.noSavedChats}</p>
+                <p className={`text-xs text-center py-6 italic ${theme === 'light' ? 'text-slate-400' : 'text-zinc-600'}`}>{t.noSavedChats}</p>
               ) : (
                 savedChats.map((chat) => (
                   <div
@@ -1791,15 +2134,19 @@ export default function Home() {
                       loadSavedChat(chat);
                     }}
                     className={`w-full text-left p-2.5 px-3 rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${currentChatId === chat.id
-                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
-                        : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        ? theme === 'light'
+                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-900 shadow-sm'
+                          : 'bg-amber-500/15 border-amber-500/40 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                        : theme === 'light'
+                          ? 'bg-slate-50/80 border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300'
+                          : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
                       }`}
                   >
                     <div className="truncate mr-2">
-                      <p className="text-[11px] font-semibold truncate group-hover:text-amber-400 transition-colors">
+                      <p className="text-[11px] font-semibold truncate group-hover:text-amber-600 transition-colors">
                         {chat.title}
                       </p>
-                      <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 mt-0.5">
+                      <div className={`flex items-center gap-1.5 text-[9px] mt-0.5 ${theme === 'light' ? 'text-slate-400' : 'text-zinc-500'}`}>
                         <span>{chat.date}</span>
                         <span>•</span>
                         <span>{chat.schemes.length} {t.schemesCount}</span>
@@ -1810,20 +2157,27 @@ export default function Home() {
                       <button
                         onClick={(e) => handleDeleteChat(chat.id, e)}
                         title="Delete chat"
-                        className="p-1 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                        className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                       >
                         <Trash2 size={12} />
                       </button>
-                      <ChevronRight size={13} className="text-zinc-600 group-hover:text-amber-400" />
+                      <ChevronRight size={13} className="text-slate-400 group-hover:text-amber-600" />
                     </div>
                   </div>
                 ))
               )}
             </div>
 
-            <div className="p-3 border-t border-zinc-800/50 text-[10px] font-medium text-zinc-600 flex flex-col gap-1.5">
-              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> System Online</div>
-              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]"></span> Lang: {selectedLanguage || 'None'}</div>
+            <div className={`p-3 border-t text-[10px] font-medium flex items-center justify-between ${
+              theme === 'light' ? 'border-slate-200 text-slate-500 bg-slate-50/80' : 'border-zinc-800/50 text-zinc-500 bg-zinc-950/60'
+            }`}>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> System Online</div>
+                <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]"></span> Lang: {selectedLanguage || 'None'}</div>
+              </div>
+              <div className="shrink-0">
+                {renderIosThemeToggle()}
+              </div>
             </div>
           </div>
         </div>
@@ -1833,19 +2187,33 @@ export default function Home() {
       {showRightMobileMenu && (
         <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
           <div
-            className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm transition-opacity"
+            className={`fixed inset-0 backdrop-blur-sm transition-opacity ${
+              theme === 'light' ? 'bg-slate-900/40' : 'bg-zinc-950/80'
+            }`}
             onClick={() => setShowRightMobileMenu(false)}
           ></div>
-          <div className="relative w-72 max-w-[85vw] bg-zinc-950 border-l border-zinc-800 flex flex-col h-full z-10 p-4 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto">
-            <div className="pb-3 mb-3 border-b border-zinc-800 flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+          <div className={`relative w-72 max-w-[85vw] border-l flex flex-col h-full z-10 p-4 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto ${
+            theme === 'light'
+              ? 'bg-white border-slate-200 text-slate-800'
+              : 'bg-zinc-950 border-zinc-800 text-zinc-200'
+          }`}>
+            <div className={`pb-3 mb-3 border-b flex items-center justify-between ${
+              theme === 'light' ? 'border-slate-200' : 'border-zinc-800'
+            }`}>
+              <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                theme === 'light' ? 'text-amber-800' : 'text-amber-400'
+              }`}>
                 <Sparkles size={14} />
                 <span>{t.matchesTitle}</span>
               </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowCscDossierModal(true)}
-                  className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-lg"
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border ${
+                    theme === 'light'
+                      ? 'text-amber-800 bg-amber-500/15 border-amber-500/40'
+                      : 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+                  }`}
                   title={t.cscDossierBtn || "CSC Dossier"}
                 >
                   <FileText size={11} />
@@ -1853,7 +2221,11 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setShowRightMobileMenu(false)}
-                  className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-lg bg-zinc-900"
+                  className={`p-1.5 rounded-lg ${
+                    theme === 'light'
+                      ? 'text-slate-600 hover:text-slate-900 bg-slate-100'
+                      : 'text-zinc-400 hover:text-zinc-100 bg-zinc-900'
+                  }`}
                 >
                   <X size={16} />
                 </button>
@@ -1862,13 +2234,17 @@ export default function Home() {
 
             <div className="space-y-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
               {!currentUser && suggestedSchemes.length > 0 ? (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center space-y-3 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
-                  <div className="w-9 h-9 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto text-base">
+                <div className={`rounded-2xl p-4 text-center space-y-3 border ${
+                  theme === 'light'
+                    ? 'bg-amber-500/10 border-amber-500/30'
+                    : 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)]'
+                }`}>
+                  <div className="w-9 h-9 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto text-base">
                     🔒
                   </div>
                   <div>
-                    <h4 className="font-bold text-amber-200 text-xs">{t.schemesMatchedTitle}</h4>
-                    <p className="text-[10px] text-zinc-400 mt-0.5 leading-relaxed">
+                    <h4 className={`font-bold text-xs ${theme === 'light' ? 'text-amber-800' : 'text-amber-200'}`}>{t.schemesMatchedTitle}</h4>
+                    <p className={`text-[10px] mt-0.5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-zinc-400'}`}>
                       {t.schemesMatchedSub}
                     </p>
                   </div>
@@ -1884,14 +2260,22 @@ export default function Home() {
                   </button>
                 </div>
               ) : suggestedSchemes.length === 0 ? (
-                <div className="text-zinc-600 text-[10px] uppercase tracking-widest text-center mt-6 p-6 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/30 font-medium leading-relaxed">
-                  {t.awaitingDataTitle}<br /><span className="text-zinc-700">{t.awaitingDataSub}</span>
+                <div className={`text-[10px] uppercase tracking-widest text-center mt-6 p-6 border border-dashed rounded-2xl font-medium leading-relaxed ${
+                  theme === 'light'
+                    ? 'text-slate-500 border-slate-300 bg-slate-50/70'
+                    : 'text-zinc-600 border-zinc-800 bg-zinc-900/30'
+                }`}>
+                  {t.awaitingDataTitle}<br /><span className={theme === 'light' ? 'text-slate-400' : 'text-zinc-700'}>{t.awaitingDataSub}</span>
                 </div>
               ) : (
                 suggestedSchemes.map((scheme, idx) => {
                   const schemeUrl = scheme.apply_url || resolveSchemeUrl(scheme.name);
                   return (
-                    <div key={idx} className="bg-zinc-900/50 p-3.5 rounded-2xl border border-zinc-800 group relative overflow-hidden flex flex-col justify-between">
+                    <div key={idx} className={`p-3.5 rounded-2xl border group relative overflow-hidden flex flex-col justify-between ${
+                      theme === 'light'
+                        ? 'bg-slate-50/90 border-slate-200 shadow-sm'
+                        : 'bg-zinc-900/50 border-zinc-800'
+                    }`}>
                       <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
 
                       <div>
@@ -1899,33 +2283,51 @@ export default function Home() {
                           href={schemeUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-semibold text-amber-300 hover:text-amber-200 transition-colors text-xs inline-flex items-center gap-1.5 underline underline-offset-4 decoration-amber-500/30"
+                          className={`font-semibold transition-colors text-xs inline-flex items-center gap-1.5 underline underline-offset-4 ${
+                            theme === 'light'
+                              ? 'text-amber-800 hover:text-amber-900 decoration-amber-500/40'
+                              : 'text-amber-300 hover:text-amber-200 decoration-amber-500/30'
+                          }`}
                           title={`Click to visit official application portal: ${schemeUrl}`}
                         >
                           <span>{scheme.name}</span>
-                          <ExternalLink size={12} className="shrink-0 text-amber-400" />
+                          <ExternalLink size={12} className="shrink-0 text-amber-500" />
                         </a>
 
                         <div className="mt-2 inline-block">
-                          <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                            theme === 'light'
+                              ? 'text-amber-800 bg-amber-500/15 border-amber-500/30'
+                              : 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                          }`}>
                             {scheme.eligibility_match}
                           </span>
                         </div>
                       </div>
 
-                      <div className="mt-3 pt-2.5 border-t border-zinc-800/60 flex items-center justify-between gap-1">
+                      <div className={`mt-3 pt-2.5 border-t flex items-center justify-between gap-1 ${
+                        theme === 'light' ? 'border-slate-200' : 'border-zinc-800/60'
+                      }`}>
                         <a
                           href={schemeUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[9px] font-bold text-zinc-300 hover:text-amber-300 bg-zinc-800 px-2 py-1 rounded border border-zinc-700 transition-all inline-flex items-center gap-1 shrink-0"
+                          className={`text-[9px] font-bold px-2 py-1 rounded border transition-all inline-flex items-center gap-1 shrink-0 ${
+                            theme === 'light'
+                              ? 'text-slate-700 hover:text-slate-900 bg-slate-100 border-slate-300'
+                              : 'text-zinc-300 hover:text-amber-300 bg-zinc-800 border-zinc-700'
+                          }`}
                         >
                           <span>Apply Site</span>
                           <ExternalLink size={9} />
                         </a>
                         <button
                           onClick={() => handleStepByStepHelp(scheme.name)}
-                          className="text-[9px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30 transition-all inline-flex items-center gap-1"
+                          className={`text-[9px] font-bold px-2 py-1 rounded border transition-all inline-flex items-center gap-1 ${
+                            theme === 'light'
+                              ? 'text-amber-800 hover:text-amber-900 bg-amber-500/15 border-amber-500/30'
+                              : 'text-amber-400 hover:text-amber-300 bg-amber-500/10 border-amber-500/30'
+                          }`}
                         >
                           <span>Step-by-Step Help 🚀</span>
                         </button>
@@ -1943,12 +2345,20 @@ export default function Home() {
       {/* --- AUTH GATING MODAL ("Unlock Your Beneficial Schemes") --- */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 bg-zinc-950/90 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full p-8 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] overflow-hidden">
+          <div className={`border rounded-3xl max-w-md w-full p-8 relative overflow-hidden transition-all duration-300 ${
+            theme === 'light'
+              ? 'bg-white border-slate-200 text-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.15)]'
+              : 'bg-zinc-900 border-zinc-800 text-zinc-100 shadow-[0_0_50px_rgba(245,158,11,0.2)]'
+          }`}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
 
             <button
               onClick={() => setShowAuthModal(false)}
-              className="absolute top-5 right-5 text-zinc-500 hover:text-zinc-200 p-1.5 rounded-full bg-zinc-800/50 hover:bg-zinc-800 transition-all"
+              className={`absolute top-5 right-5 p-1.5 rounded-full transition-all ${
+                theme === 'light'
+                  ? 'text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200'
+                  : 'text-zinc-500 hover:text-zinc-200 bg-zinc-800/50 hover:bg-zinc-800'
+              }`}
             >
               <X size={18} />
             </button>
@@ -1958,16 +2368,22 @@ export default function Home() {
               <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-[0_0_25px_rgba(245,158,11,0.4)]">
                 ✨
               </div>
-              <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-400">
+              <h3 className={`text-xl font-bold ${
+                theme === 'light' ? 'text-amber-800' : 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-400'
+              }`}>
                 {t.authTitle}
               </h3>
-              <p className="text-xs text-zinc-400 leading-relaxed px-2">
+              <p className={`text-xs leading-relaxed px-2 ${
+                theme === 'light' ? 'text-slate-600' : 'text-zinc-400'
+              }`}>
                 {t.authSubtitle}
               </p>
             </div>
 
             {/* Tabs: Sign Up / Log In */}
-            <div className="flex p-1 bg-zinc-950 rounded-xl border border-zinc-800 mb-6">
+            <div className={`flex p-1 rounded-xl border mb-6 ${
+              theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-zinc-950 border-zinc-800'
+            }`}>
               <button
                 type="button"
                 onClick={() => {
@@ -1976,7 +2392,7 @@ export default function Home() {
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${authTab === 'signup'
                     ? 'bg-amber-500 text-zinc-950 shadow-md'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    : theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-zinc-400 hover:text-zinc-200'
                   }`}
               >
                 {t.signUpTab}
@@ -1989,7 +2405,7 @@ export default function Home() {
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${authTab === 'login'
                     ? 'bg-amber-500 text-zinc-950 shadow-md'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    : theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-zinc-400 hover:text-zinc-200'
                   }`}
               >
                 {t.logInTab}
@@ -2000,39 +2416,57 @@ export default function Home() {
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               {authTab === 'signup' && (
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">{t.fullNameLabel}</label>
+                  <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1 ${
+                    theme === 'light' ? 'text-slate-700' : 'text-zinc-400'
+                  }`}>{t.fullNameLabel}</label>
                   <input
                     type="text"
                     required
                     placeholder={t.fullNamePlaceholder}
                     value={authName}
                     onChange={(e) => setAuthName(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-amber-500/50 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none transition-colors"
+                    className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-colors ${
+                      theme === 'light'
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
+                        : 'bg-zinc-950 border-zinc-800 text-zinc-200 focus:border-amber-500/50'
+                    }`}
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">{t.emailLabel}</label>
+                <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1 ${
+                  theme === 'light' ? 'text-slate-700' : 'text-zinc-400'
+                }`}>{t.emailLabel}</label>
                 <input
                   type="email"
                   required
                   placeholder={t.emailPlaceholder}
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-amber-500/50 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none transition-colors"
+                  className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-colors ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-200 focus:border-amber-500/50'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">{t.passwordLabel}</label>
+                <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1 ${
+                  theme === 'light' ? 'text-slate-700' : 'text-zinc-400'
+                }`}>{t.passwordLabel}</label>
                 <input
                   type="password"
                   required
                   placeholder="••••••••"
                   value={authPass}
                   onChange={(e) => setAuthPass(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-amber-500/50 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none transition-colors"
+                  className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-colors ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-200 focus:border-amber-500/50'
+                  }`}
                 />
                 {authTab === 'signup' && authPass && (
                   <div className="mt-2 space-y-1">
@@ -2049,14 +2483,14 @@ export default function Home() {
                                   : strength.score === 2
                                   ? 'bg-amber-500'
                                   : 'bg-emerald-500'
-                                : 'bg-zinc-800'
+                                : theme === 'light' ? 'bg-slate-200' : 'bg-zinc-800'
                             }`}
                           />
                         );
                       })}
                     </div>
                     <div className="flex justify-between items-center text-[10px]">
-                      <span className="text-zinc-500">Security rating</span>
+                      <span className={theme === 'light' ? 'text-slate-500' : 'text-zinc-500'}>Security rating</span>
                       <span className={getPasswordStrength(authPass).textColor}>
                         {getPasswordStrength(authPass).label}
                       </span>
@@ -2066,11 +2500,11 @@ export default function Home() {
               </div>
 
               {authError && (
-                <p className="text-xs text-red-400 font-medium text-center py-1">{authError}</p>
+                <p className="text-xs text-red-500 font-medium text-center py-1">{authError}</p>
               )}
 
               {authSuccessMsg && (
-                <p className="text-xs text-emerald-400 font-medium text-center py-1">{authSuccessMsg}</p>
+                <p className="text-xs text-emerald-500 font-medium text-center py-1">{authSuccessMsg}</p>
               )}
 
               <button
@@ -2089,7 +2523,9 @@ export default function Home() {
               </button>
             </form>
 
-            <p className="text-[10px] text-zinc-500 text-center mt-4 flex items-center justify-center gap-1">
+            <p className={`text-[10px] text-center mt-4 flex items-center justify-center gap-1 ${
+              theme === 'light' ? 'text-slate-500' : 'text-zinc-500'
+            }`}>
               <ShieldCheck size={12} className="text-amber-500" />
               <span>{t.freeSecureFootnote}</span>
             </p>
@@ -2259,6 +2695,7 @@ export default function Home() {
         userEmail={currentUser?.email}
         selectedLanguage={selectedLanguage}
         schemes={suggestedSchemes}
+        theme={theme}
       />
 
       {/* --- USP 2: YOJANA ELIGIBILITY CALCULATOR MODAL (पात्रता कैलकुलेटर) --- */}
@@ -2266,6 +2703,7 @@ export default function Home() {
         isOpen={showCalculatorModal}
         onClose={() => setShowCalculatorModal(false)}
         selectedLanguage={selectedLanguage}
+        theme={theme}
         onApplyToChat={(query) => {
           if (!selectedLanguage) {
             handleLanguageSelect('Hindi');
@@ -2281,6 +2719,7 @@ export default function Home() {
         isOpen={showScamShieldModal}
         onClose={() => setShowScamShieldModal(false)}
         selectedLanguage={selectedLanguage}
+        theme={theme}
       />
 
     </div>
