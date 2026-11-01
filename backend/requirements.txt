@@ -7,7 +7,7 @@ langchain-core
 langgraph
 groq
 python-multipart
-edge-tts
+edge-tts>=7.3.1
 supabase
 bcrypt
 python-jose[cryptography]
