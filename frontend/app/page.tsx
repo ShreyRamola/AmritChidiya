@@ -965,6 +965,26 @@ export default function Home() {
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
+    // Pick the most natural voice available in the browser engine
+    try {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        const langPrefix = targetLang.split('-')[0];
+        const bestVoice =
+          voices.find(v => v.lang === targetLang && (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google'))) ||
+          voices.find(v => v.lang.startsWith(langPrefix) && (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google'))) ||
+          voices.find(v => v.lang === targetLang) ||
+          voices.find(v => v.lang.startsWith(langPrefix)) ||
+          voices.find(v => v.lang === 'en-IN' || v.name.toLowerCase().includes('india') || v.name.toLowerCase().includes('swara') || v.name.toLowerCase().includes('neerja'));
+        if (bestVoice) {
+          utterance.voice = bestVoice;
+        }
+      }
+    } catch {
+      // Fallback silently if getVoices is restricted by browser sandbox
+    }
+
+
     utterance.onstart = () => {
       if (sessionId === undefined || speechSessionIdRef.current === sessionId) {
         setIsSpeaking(true);
