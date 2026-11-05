@@ -26,7 +26,8 @@ import {
   FileText,
   Printer,
   Sun,
-  Moon
+  Moon,
+  Compass
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -46,6 +47,7 @@ import MarkdownContent from '@/components/MarkdownContent';
 import CscDossierModal from '@/components/CscDossierModal';
 import EligibilityCalculatorModal from '@/components/EligibilityCalculatorModal';
 import ScamShieldModal from '@/components/ScamShieldModal';
+import SchemeExplorerModal from '@/components/SchemeExplorerModal';
 
 const SCHEME_URL_MAP: Record<string, string> = {
   'national scholarship portal': 'https://scholarships.gov.in',
@@ -174,7 +176,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     schemesCount: "योजनाएं",
     calculatorBtn: "कैलकुलेटर",
     domainShieldBtn: "डोमेन शील्ड",
-    cscDossierBtn: "CSC पर्ची"
+    cscDossierBtn: "CSC पर्ची",
+    schemeExplorerBtn: "योजना बुलेटिन"
   },
   Hinglish: {
     authTitle: "Aap Sirf Ek Kadam Dur Hain! ✨",
@@ -225,7 +228,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     schemesCount: "schemes",
     calculatorBtn: "Calculator",
     domainShieldBtn: "Domain Shield",
-    cscDossierBtn: "CSC Parchi"
+    cscDossierBtn: "CSC Parchi",
+    schemeExplorerBtn: "Nayi Yojnayein"
   },
   English: {
     authTitle: "You Are Just One Step Away! ✨",
@@ -276,7 +280,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     schemesCount: "schemes",
     calculatorBtn: "Calculator",
     domainShieldBtn: "Domain Shield",
-    cscDossierBtn: "CSC Dossier"
+    cscDossierBtn: "CSC Dossier",
+    schemeExplorerBtn: "Scheme Explorer"
   },
   Marathi: {
     authTitle: "तुम्ही फक्त एक पाऊल दूर आहात! ✨",
@@ -327,7 +332,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     schemesCount: "योजना",
     calculatorBtn: "कॅल्क्युलेटर",
     domainShieldBtn: "डोमेन शील्ड",
-    cscDossierBtn: "CSC पावती"
+    cscDossierBtn: "CSC पावती",
+    schemeExplorerBtn: "नवीन योजना"
   },
   Tamil: {
     authTitle: "நீங்கள் ஒரு அடி மட்டுமே தொலைவில் உள்ளீர்கள்! ✨",
@@ -378,7 +384,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     schemesCount: "திட்டங்கள்",
     calculatorBtn: "கால்குலேட்டர்",
     domainShieldBtn: "பாதுகாப்பு கவசம்",
-    cscDossierBtn: "CSC ஆவணம்"
+    cscDossierBtn: "CSC ஆவணம்",
+    schemeExplorerBtn: "திட்ட புல்லட்டின்"
   }
 };
 
@@ -509,6 +516,7 @@ export default function Home() {
   const [showCscDossierModal, setShowCscDossierModal] = useState(false);
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
   const [showScamShieldModal, setShowScamShieldModal] = useState(false);
+  const [showSchemeExplorerModal, setShowSchemeExplorerModal] = useState(false);
 
   const getPasswordStrength = (pass: string) => {
     if (!pass) return { score: 0, label: '', textColor: '' };
@@ -1161,6 +1169,19 @@ export default function Home() {
     updateChatId(null);
   };
 
+  
+  const handleInquireScheme = (schemeName: string, queryPrompt?: string) => {
+    setShowSchemeExplorerModal(false);
+    const prompt = queryPrompt || (
+      selectedLanguage === 'Hindi'
+        ? `कृपया मुझे '${schemeName}' के बारे में बताएं। इसकी पात्रता (eligibility), लाभ, आवश्यक दस्तावेज और आवेदन करने की प्रक्रिया क्या है?`
+        : selectedLanguage === 'Hinglish'
+        ? `Mujhe '${schemeName}' ke baare mein detail mein batayein - eligibility criteria, benefits, required documents aur direct apply karne ka step-by-step process kya hai?`
+        : `Please explain '${schemeName}' in detail - what is the eligibility criteria, benefits, required documents, and step-by-step application process?`
+    );
+    sendMessage(prompt);
+  };
+
   const sendMessage = async (overrideContent?: string) => {
     const messageToSend = overrideContent || input;
     if (!messageToSend.trim() || loading) return;
@@ -1532,6 +1553,26 @@ export default function Home() {
               </button>
             </div>
 
+            
+            {/* USP 4: New Schemes Explorer & Newsletter Button */}
+            <div className="px-3 pb-2">
+              <button
+                onClick={() => setShowSchemeExplorerModal(true)}
+                className={`w-full flex items-center justify-between p-2.5 px-3 rounded-xl border font-bold text-xs transition-all duration-300 shadow-xs cursor-pointer group ${
+                  theme === 'light'
+                    ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 text-amber-950 hover:bg-amber-100 hover:border-amber-400'
+                    : 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Compass size={15} className="text-amber-500 group-hover:rotate-45 transition-transform duration-300" />
+                  <span>{t.schemeExplorerBtn || 'Nayi Yojnayein'}</span>
+                </div>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500 text-zinc-950 font-bold uppercase tracking-wider">
+                  LIVE 2026
+                </span>
+              </button>
+            </div>
             {/* Saved Chat History Section ("Purani Chats") */}
             <div className={`flex-1 overflow-y-auto px-3 py-2 space-y-1.5 custom-scrollbar border-t transition-colors ${
               theme === 'light' ? 'border-slate-200 text-slate-800' : 'border-zinc-800/40 text-zinc-200'
@@ -1682,6 +1723,26 @@ export default function Home() {
                   <Calculator size={13} className={theme === 'light' ? 'text-amber-600' : 'text-amber-400'} />
                   <span className="hidden md:inline">{t.calculatorBtn || "Calculator"}</span>
                 </button>
+
+                
+                {/* USP 4: Scheme Explorer & Gazette Bulletin */}
+                <button
+                  onClick={() => setShowSchemeExplorerModal(true)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold transition-all shadow-sm cursor-pointer ${
+                    theme === 'light'
+                      ? 'bg-amber-500/15 border border-amber-500/40 text-amber-800 hover:bg-amber-500/25 hover:text-amber-900'
+                      : 'bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200'
+                  }`}
+                  title={t.schemeExplorerBtn || "Nayi Yojnayein"}
+                >
+                  <Compass size={13} className={theme === 'light' ? 'text-amber-600' : 'text-amber-400'} />
+                  <span className="hidden md:inline">{t.schemeExplorerBtn || "Nayi Yojnayein"}</span>
+                </button>
+
+                
+
+
+
 
                 {/* USP: Official Domain Shield & Anti-Scam Checker */}
                 <button
@@ -2741,6 +2802,16 @@ export default function Home() {
         selectedLanguage={selectedLanguage}
         theme={theme}
       />
+
+      {/* --- USP 4: NEW SCHEMES & SCHOLARSHIP EXPLORER MODAL (योजना बुलेटिन) --- */}
+      <SchemeExplorerModal
+        isOpen={showSchemeExplorerModal}
+        onClose={() => setShowSchemeExplorerModal(false)}
+        selectedLanguage={selectedLanguage}
+        theme={theme}
+        onInquireScheme={handleInquireScheme}
+      />
+
 
     </div>
   );

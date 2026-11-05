@@ -5,6 +5,9 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path, override=True)
 load_dotenv(override=True)
 
 import edge_tts
@@ -171,6 +174,10 @@ class TTSRequest(BaseModel):
     text: str
     language: str = "Hindi"
 
+class VerifyDomainRequest(BaseModel):
+    query: str
+    language: str = "English"
+
 VOICE_MAPPING = {
     "Hindi": "hi-IN-SwaraNeural",
     "Hinglish": "hi-IN-SwaraNeural",
@@ -220,6 +227,48 @@ async def signup(request: Request, req: SignUpRequest):
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+@app.post("/verify-domain")
+@limiter.limit("30/minute")
+async def verify_domain_endpoint(
+    request: Request,
+    req: VerifyDomainRequest,
+    current_user: Optional[dict] = Depends(get_optional_current_user)
+):
+    try:
+        from agents.domain_shield import verify_domain_realtime
+        result = verify_domain_realtime(req.query, language=req.language)
+        return result
+    except Exception as e:
+        print(f"Verify domain error: {repr(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/new-schemes")
+@limiter.limit("60/minute")
+async def get_new_schemes_endpoint(
+    request: Request,
+    gender: Optional[str] = None,
+    age: Optional[int] = None,
+    category: Optional[str] = None,
+    state: Optional[str] = None,
+    income_lakh: Optional[float] = None,
+    search: Optional[str] = None,
+    current_user: Optional[dict] = Depends(get_optional_current_user)
+):
+    try:
+        from agents.scheme_explorer import get_explorer_schemes
+        result = get_explorer_schemes(
+            gender=gender,
+            age=age,
+            category=category,
+            state=state,
+            income_lakh=income_lakh,
+            search=search
+        )
+        return result
+    except Exception as e:
+        print(f"Scheme explorer error: {repr(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/login")
 @limiter.limit("10/minute")

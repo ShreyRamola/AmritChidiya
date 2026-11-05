@@ -14,8 +14,25 @@ from pydantic import BaseModel, Field
 
 from prompts.system_prompt import SYSTEM_PROMPT
 import urllib.parse
+from agents.scheme_explorer import NEW_GOVT_SCHEMES_DATA
+from agents.domain_shield import search_ddg_html
 
 SCHEME_URL_MAP = {
+    "pm internship": "https://pminternship.mca.gov.in",
+    "pmis": "https://pminternship.mca.gov.in",
+    "internship": "https://pminternship.mca.gov.in",
+    "up rani laxmibai scooty": "https://up.gov.in",
+    "rani laxmibai scooty": "https://up.gov.in",
+    "scooty yojana": "https://up.gov.in",
+    "pm surya ghar": "https://pmsuryaghar.gov.in",
+    "muft bijli": "https://pmsuryaghar.gov.in",
+    "majhi ladki bahin": "https://ladakibahin.maharashtra.gov.in",
+    "ladki bahin": "https://ladakibahin.maharashtra.gov.in",
+    "lakhpati didi": "https://nrlm.gov.in",
+    "anuprati coaching": "https://sjms.rajasthan.gov.in",
+    "abhyudaya": "https://abhyuday.up.gov.in",
+    "ladli behna": "https://cmladlibehna.mp.gov.in",
+    "jai bheem": "https://delhi.gov.in",
     "national scholarship portal": "https://scholarships.gov.in",
     "nsp": "https://scholarships.gov.in",
     "up post matric scholarship": "https://scholarship.up.gov.in",
@@ -119,7 +136,6 @@ def extract_schemes_from_text(text: str) -> list:
     seen = set()
     for m in raw_matches:
         extracted_url = None
-        # Check if matched text contains markdown link [Name](URL)
         link_match = re.search(r'\[(.*?)\]\((https?://[^\s)]+)\)', m)
         if link_match:
             clean_name = link_match.group(1)
@@ -146,25 +162,19 @@ def extract_schemes_from_text(text: str) -> list:
     return schemes
 
 
-
-
 # ── Live Real-Time Scheme Search Grounding ───────────────────────────────────
-def search_live_scheme_updates(query: str, max_results: int = 3) -> str:
+def search_live_scheme_updates(query: str, max_results: int = 4) -> str:
     """Fetch live, up-to-date scheme announcements from official government portals."""
     try:
-        # pyrefly: ignore [missing-import]
-        from duckduckgo_search import DDGS
-        search_query = f"{query} site:gov.in OR site:nic.in OR site:myscheme.gov.in"
-        with DDGS() as ddgs:
-            results = list(ddgs.text(search_query, max_results=max_results))
-            if not results:
-                results = list(ddgs.text(f"{query} government scheme update india", max_results=max_results))
-            if results:
-                summary = "\n[LIVE REAL-TIME GOVERNMENT DATA FROM OFFICIAL PORTALS]\n"
-                for r in results:
-                    summary += f"- Title: {r.get('title')}\n  URL: {r.get('href')}\n  Update: {r.get('body')}\n"
-                summary += "[END LIVE DATA]\n"
-                return summary
+        results = search_ddg_html(f"{query} site:gov.in OR site:nic.in OR site:myscheme.gov.in", max_results=max_results)
+        if not results:
+            results = search_ddg_html(f"{query} government scheme portal india", max_results=max_results)
+        if results:
+            summary = "\n[LIVE REAL-TIME GOVERNMENT DATA FROM OFFICIAL PORTALS]\n"
+            for r in results:
+                summary += f"- Title: {r.get('title')}\n  URL: {r.get('url')}\n  Update: {r.get('snippet')}\n"
+            summary += "[END LIVE DATA]\n"
+            return summary
     except Exception as e:
         print(f"Live search notice: {e}")
     return ""
@@ -175,7 +185,6 @@ def _to_lc_messages(raw_messages: list, user_context: dict) -> list:
     language = user_context.get("language", "English") if user_context else "English"
     formatted_prompt = SYSTEM_PROMPT.format(language=language)
 
-    # Check if user query asks for latest/recent/deadline/current year info
     last_user_msg = ""
     for m in reversed(raw_messages):
         role = m.get("role") if isinstance(m, dict) else getattr(m, "role", "")
@@ -183,14 +192,47 @@ def _to_lc_messages(raw_messages: list, user_context: dict) -> list:
             last_user_msg = m.get("content") if isinstance(m, dict) else getattr(m, "content", "")
             break
 
-    live_indicators = [
-        "latest", "new", "update", "recent", "deadline", "date", "last date", "current",
-        "2024", "2025", "2026", "aakhiri", "tarikh", "badlav", "kab tak", "kab aayega", "status"
-    ]
-    if last_user_msg and any(w in last_user_msg.lower() for w in live_indicators):
-        live_info = search_live_scheme_updates(last_user_msg)
-        if live_info:
-            formatted_prompt += f"\n\n{live_info}\nUse this verified real-time official portal data to answer accurately."
+    user_lower = last_user_msg.lower() if last_user_msg else ""
+
+    # Match against verified official scheme database
+    matched_scheme = None
+    if user_lower:
+        for s in NEW_GOVT_SCHEMES_DATA:
+            name_clean = s['name'].lower()
+            id_clean = s['id'].lower().replace('-', ' ')
+            hindi_clean = s['hindi_name'].lower()
+            if name_clean in user_lower or id_clean in user_lower or hindi_clean in user_lower:
+                matched_scheme = s
+                break
+            key_parts = [w for w in name_clean.split() if w not in ['scheme', 'yojana', 'in', 'and', 'for', 'of', 'the']]
+            if len(key_parts) >= 2 and all(w in user_lower for w in key_parts[:2]):
+                matched_scheme = s
+                break
+
+    if matched_scheme:
+        formatted_prompt += f"""
+
+[VERIFIED AUTHENTIC GOVERNMENT WELFARE SCHEME GROUND TRUTH]
+Scheme Name: {matched_scheme['name']} ({matched_scheme['hindi_name']})
+Official Portal: {matched_scheme['official_portal']}
+Category: {matched_scheme['category_type']} | Jurisdiction: {matched_scheme['state']}
+Status: AUTHENTIC, RECOGNIZED GOVERNMENT WELFARE SCHEME (CRITICAL: Do NOT claim this is fake, a rumor, or non-existent).
+Key Benefits: {matched_scheme['benefit']}
+Eligibility Criteria: {matched_scheme['eligibility_summary']}
+Official Details & Recent Updates: {matched_scheme['news_snippet']}
+Instructions: Provide clear, authoritative guidance on how to apply online via {matched_scheme['official_portal']}, eligibility requirements, and required documents. Use the official scheme header format: ### 1. **[{matched_scheme['name']}]({matched_scheme['official_portal']})**.
+[END VERIFIED DATA]
+"""
+    else:
+        live_indicators = [
+            "latest", "new", "update", "recent", "deadline", "date", "last date", "current",
+            "2024", "2025", "2026", "aakhiri", "tarikh", "badlav", "kab tak", "kab aayega", "status",
+            "scheme", "yojana", "scholarship", "portal", "eligibility", "benefit"
+        ]
+        if user_lower and any(w in user_lower for w in live_indicators):
+            live_info = search_live_scheme_updates(last_user_msg)
+            if live_info:
+                formatted_prompt += f"\n\n{live_info}\nUse this verified real-time official portal data to answer accurately."
 
     result = [SystemMessage(content=formatted_prompt)]
     for m in raw_messages:
@@ -211,7 +253,6 @@ def llm_node(state: AgentState) -> dict:
     schemes_data = []
 
     try:
-        # Fast direct generation
         res = llm.invoke(lc_messages)
         message_content = res.content if hasattr(res, "content") else str(res)
         
